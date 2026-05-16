@@ -1,5 +1,7 @@
 import type {
   ChatMessage,
+  ChatThread,
+  ChatThreadScopeType,
   CodeGeneration,
   LearningPathDetail,
   LearningPathSummary,
@@ -12,6 +14,7 @@ import type {
   Task,
   TaskFiles,
   TestRun,
+  ThreadMessage,
   Visualization,
   WorkspaceStatus,
 } from './types';
@@ -124,4 +127,17 @@ export const api = {
     ),
   showLearningPath: (pathId: string) => request<LearningPathDetail>(`/api/paths/${pathId}`),
   showPlan: (planId: string) => request<PlanDetail>(`/api/plans/${planId}`),
+  getChatThread: (scopeType: ChatThreadScopeType, scopeId: string) =>
+    request<Readonly<{ thread: ChatThread }>>(
+      `/api/chat-threads?scopeType=${encodeURIComponent(scopeType)}&scopeId=${encodeURIComponent(scopeId)}`,
+    ),
+  getThreadMessages: (threadId: string) =>
+    request<Readonly<{ messages: ReadonlyArray<ThreadMessage> }>>(
+      `/api/chat-threads/${threadId}/messages`,
+    ),
+  postThreadMessage: (threadId: string, message: string) =>
+    request<Readonly<{ message: ThreadMessage }>>(`/api/chat-threads/${threadId}/messages`, {
+      body: JSON.stringify({ message }),
+      method: 'POST',
+    }),
 };

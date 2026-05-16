@@ -73,6 +73,11 @@ export const fsPathQuerySchema = z.object({
   path: z.string().trim().min(1).max(500),
 });
 
+export const threadScopeQuerySchema = z.object({
+  scopeId: z.string().trim().min(1).max(200),
+  scopeType: z.enum(['path', 'quiz', 'setup', 'task', 'topic']),
+});
+
 export type CreatePlanInput = z.infer<typeof createPlanSchema>;
 export type CreateLearningPathInput = z.infer<typeof createLearningPathSchema>;
 export type SetupInput = z.infer<typeof setupSchema>;

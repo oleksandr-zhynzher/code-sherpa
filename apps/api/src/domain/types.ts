@@ -81,6 +81,25 @@ export type ChatMessage = Readonly<{
   taskId: string;
 }>;
 
+export type ChatThreadScopeType = 'path' | 'quiz' | 'setup' | 'task' | 'topic';
+
+export type ChatThread = Readonly<{
+  createdAt: string;
+  id: string;
+  scopeId: string;
+  scopeType: ChatThreadScopeType;
+  title: string;
+  updatedAt: string;
+}>;
+
+export type ThreadMessage = Readonly<{
+  contentMd: string;
+  createdAt: string;
+  id: string;
+  role: 'assistant' | 'tool' | 'user';
+  threadId: string;
+}>;
+
 export type Visualization = Readonly<{
   createdAt: string;
   id: string;

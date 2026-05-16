@@ -306,6 +306,23 @@ function addAgentToolResults(db: DatabaseSync): void {
   ensureColumn(db, 'agent_session', 'tool_results_json', "TEXT NOT NULL DEFAULT '[]'");
 }
 
+function makeTaskIdNullableOnChatMessage(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_message_v2 (
+      id TEXT PRIMARY KEY,
+      task_id TEXT REFERENCES task(id) ON DELETE CASCADE,
+      thread_id TEXT REFERENCES chat_thread(id) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      content_md TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    INSERT INTO chat_message_v2 (id, task_id, role, content_md, created_at)
+      SELECT id, task_id, role, content_md, created_at FROM chat_message;
+    DROP TABLE chat_message;
+    ALTER TABLE chat_message_v2 RENAME TO chat_message;
+  `);
+}
+
 const migrations: ReadonlyArray<Migration> = [
   {
     name: 'create-base-poc-schema',
@@ -336,6 +353,11 @@ const migrations: ReadonlyArray<Migration> = [
     name: 'add-agent-tool-results',
     run: addAgentToolResults,
     version: 6,
+  },
+  {
+    name: 'make-task-id-nullable-on-chat-message',
+    run: makeTaskIdNullableOnChatMessage,
+    version: 7,
   },
 ];
 

@@ -738,3 +738,127 @@ describe('test run lifecycle', () => {
     await server.close();
   });
 });
+
+describe('chat threads', () => {
+  it('creates a thread on first GET by-scope and returns same thread on repeat', async () => {
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+    });
+
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+    const pathId = planResponse.json().id;
+
+    const firstResponse = await server.inject({
+      method: 'GET',
+      url: `/api/chat-threads?scopeType=path&scopeId=${pathId}`,
+    });
+
+    expect(firstResponse.statusCode).toBe(200);
+    expect(firstResponse.json().thread).toMatchObject({
+      scopeType: 'path',
+      scopeId: pathId,
+    });
+    const threadId = firstResponse.json().thread.id;
+
+    const secondResponse = await server.inject({
+      method: 'GET',
+      url: `/api/chat-threads?scopeType=path&scopeId=${pathId}`,
+    });
+
+    expect(secondResponse.statusCode).toBe(200);
+    expect(secondResponse.json().thread.id).toBe(threadId);
+
+    await server.close();
+  });
+
+  it('persists posted messages and returns them in order', async () => {
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+    });
+
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+    const pathId = planResponse.json().id;
+
+    const threadResponse = await server.inject({
+      method: 'GET',
+      url: `/api/chat-threads?scopeType=path&scopeId=${pathId}`,
+    });
+    const threadId = threadResponse.json().thread.id;
+
+    await server.inject({
+      method: 'POST',
+      payload: { message: 'First message' },
+      url: `/api/chat-threads/${threadId}/messages`,
+    });
+    await server.inject({
+      method: 'POST',
+      payload: { message: 'Second message' },
+      url: `/api/chat-threads/${threadId}/messages`,
+    });
+
+    const messagesResponse = await server.inject({
+      method: 'GET',
+      url: `/api/chat-threads/${threadId}/messages`,
+    });
+
+    expect(messagesResponse.statusCode).toBe(200);
+    const messages = messagesResponse.json().messages;
+    expect(messages).toHaveLength(2);
+    expect(messages[0].contentMd).toBe('First message');
+    expect(messages[1].contentMd).toBe('Second message');
+
+    await server.close();
+  });
+
+  it('does not leak messages between different scope threads', async () => {
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+    });
+
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+    const topicId = planResponse.json().topics[0].id;
+    const taskId = planResponse.json().topics[0].tasks[0].id;
+
+    const topicThread = await server.inject({
+      method: 'GET',
+      url: `/api/chat-threads?scopeType=topic&scopeId=${topicId}`,
+    });
+    const taskThread = await server.inject({
+      method: 'GET',
+      url: `/api/chat-threads?scopeType=task&scopeId=${taskId}`,
+    });
+
+    await server.inject({
+      method: 'POST',
+      payload: { message: 'Topic message' },
+      url: `/api/chat-threads/${topicThread.json().thread.id}/messages`,
+    });
+
+    const taskMessagesResponse = await server.inject({
+      method: 'GET',
+      url: `/api/chat-threads/${taskThread.json().thread.id}/messages`,
+    });
+
+    expect(taskMessagesResponse.json().messages).toHaveLength(0);
+
+    await server.close();
+  });
+});

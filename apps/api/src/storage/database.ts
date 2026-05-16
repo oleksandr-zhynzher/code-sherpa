@@ -6,6 +6,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { generatePlanTemplate } from '../domain/planner.js';
 import type {
   ChatMessage,
+  ChatThread,
+  ChatThreadScopeType,
   CodeGeneration,
   CodeGenerationStatus,
   PlanDetail,
@@ -16,6 +18,7 @@ import type {
   Task,
   TaskContext,
   TestRun,
+  ThreadMessage,
   Topic,
   Visualization,
 } from '../domain/types.js';
@@ -71,6 +74,23 @@ type ChatMessageRow = Readonly<{
   id: string;
   role: ChatMessage['role'];
   task_id: string;
+}>;
+
+type ChatThreadRow = Readonly<{
+  created_at: string;
+  id: string;
+  scope_id: string;
+  scope_type: ChatThreadScopeType;
+  title: string;
+  updated_at: string;
+}>;
+
+type ThreadMessageRow = Readonly<{
+  content_md: string;
+  created_at: string;
+  id: string;
+  role: ThreadMessage['role'];
+  thread_id: string;
 }>;
 
 type VisualizationRow = Readonly<{
@@ -140,6 +160,11 @@ export type CodeSherpaDatabase = Readonly<{
   addChatMessage: (
     input: Readonly<{ contentMd: string; role: ChatMessage['role']; taskId: string }>,
   ) => ChatMessage;
+  addThreadMessage: (
+    input: Readonly<{ contentMd: string; role: ThreadMessage['role']; threadId: string }>,
+  ) => ThreadMessage;
+  findOrCreateChatThread: (scopeType: ChatThreadScopeType, scopeId: string) => ChatThread;
+  listThreadMessages: (threadId: string) => ReadonlyArray<ThreadMessage>;
   createCodeGeneration: (
     input: Readonly<{
       generatedPaths: ReadonlyArray<string>;
@@ -329,6 +354,27 @@ function mapTestRun(row: TestRunRow): TestRun {
   };
 }
 
+function mapChatThread(row: ChatThreadRow): ChatThread {
+  return {
+    createdAt: row.created_at,
+    id: row.id,
+    scopeId: row.scope_id,
+    scopeType: row.scope_type,
+    title: row.title,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapThreadMessage(row: ThreadMessageRow): ThreadMessage {
+  return {
+    contentMd: row.content_md,
+    createdAt: row.created_at,
+    id: row.id,
+    role: row.role,
+    threadId: row.thread_id,
+  };
+}
+
 function mapProgressEvent(row: ProgressEventRow): ProgressEvent {
   const metadata = parseProgressMetadata(row.metadata_json);
 
@@ -490,6 +536,56 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
     },
     close: () => {
       db.close();
+    },
+    addThreadMessage: (input) => {
+      return runInTransaction(db, () => {
+        const id = `tmsg-${randomUUID()}`;
+        const createdAt = nowIso();
+        db.prepare(
+          'INSERT INTO chat_message (id, task_id, thread_id, role, content_md, created_at) VALUES (?, NULL, ?, ?, ?, ?)',
+        ).run(id, input.threadId, input.role, input.contentMd, createdAt);
+        db.prepare('UPDATE chat_thread SET updated_at = ? WHERE id = ?').run(
+          createdAt,
+          input.threadId,
+        );
+
+        return {
+          contentMd: input.contentMd,
+          createdAt,
+          id,
+          role: input.role,
+          threadId: input.threadId,
+        };
+      });
+    },
+    findOrCreateChatThread: (scopeType, scopeId) => {
+      const existing = db
+        .prepare('SELECT * FROM chat_thread WHERE scope_type = ? AND scope_id = ? LIMIT 1')
+        .get(scopeType, scopeId) as unknown as ChatThreadRow | undefined;
+
+      if (existing !== undefined) {
+        return mapChatThread(existing);
+      }
+
+      return runInTransaction(db, () => {
+        const id = `thread-${randomUUID()}`;
+        const now = nowIso();
+        const title = `${scopeType} thread`;
+        db.prepare(
+          'INSERT INTO chat_thread (id, scope_type, scope_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        ).run(id, scopeType, scopeId, title, now, now);
+
+        return { createdAt: now, id, scopeId, scopeType, title, updatedAt: now };
+      });
+    },
+    listThreadMessages: (threadId: string) => {
+      const rows = db
+        .prepare(
+          'SELECT id, thread_id, role, content_md, created_at FROM chat_message WHERE thread_id = ? ORDER BY created_at ASC',
+        )
+        .all(threadId) as unknown as ReadonlyArray<ThreadMessageRow>;
+
+      return rows.map(mapThreadMessage);
     },
     createCodeGeneration: (input) => {
       return runInTransaction(db, () => {

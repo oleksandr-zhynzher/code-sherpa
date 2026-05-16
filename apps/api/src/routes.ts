@@ -20,6 +20,7 @@ import {
   repoLinkSchema,
   setupSchema,
   solutionUpdateSchema,
+  threadScopeQuerySchema,
 } from './http/contracts.js';
 import {
   ConflictError,
@@ -413,6 +414,31 @@ export function registerRoutes(server: FastifyInstance): void {
       userMessage,
       visualization,
     });
+  });
+
+  server.get('/api/chat-threads', async (request) => {
+    const query = threadScopeQuerySchema.parse(request.query);
+    const thread = server.codeSherpa.db.findOrCreateChatThread(query.scopeType, query.scopeId);
+
+    return { thread };
+  });
+
+  server.get('/api/chat-threads/:id/messages', async (request) => {
+    const params = idParamsSchema.parse(request.params);
+
+    return { messages: server.codeSherpa.db.listThreadMessages(params.id) };
+  });
+
+  server.post('/api/chat-threads/:id/messages', async (request, reply) => {
+    const params = idParamsSchema.parse(request.params);
+    const input = chatRequestSchema.parse(request.body);
+    const userMessage = server.codeSherpa.db.addThreadMessage({
+      contentMd: input.message,
+      role: 'user',
+      threadId: params.id,
+    });
+
+    return reply.status(201).send({ message: userMessage });
   });
 
   server.get('/api/visualizations/:id', async (request) => {

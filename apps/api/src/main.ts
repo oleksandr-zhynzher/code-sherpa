@@ -3,7 +3,7 @@ import { buildServer } from './server.js';
 const host = process.env['HOST'] ?? '127.0.0.1';
 const port = Number.parseInt(process.env['PORT'] ?? '8000', 10);
 
-const server = buildServer();
+const server = await buildServer();
 
 try {
   await server.listen({ host, port });

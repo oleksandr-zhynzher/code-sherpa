@@ -140,4 +140,8 @@ export const api = {
       body: JSON.stringify({ message }),
       method: 'POST',
     }),
+  getTaskVisualizations: (taskId: string) =>
+    request<Readonly<{ visualizations: ReadonlyArray<Visualization> }>>(
+      `/api/tasks/${taskId}/visualizations`,
+    ),
 };

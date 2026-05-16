@@ -24,6 +24,13 @@ export class ConflictError extends Error {
   }
 }
 
+export class ValidationError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
 export function errorResponse(code: ApiErrorCode, message: string, details?: unknown): ApiError {
   return {
     error: {

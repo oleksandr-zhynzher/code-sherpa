@@ -23,6 +23,7 @@ import type {
   Visualization,
 } from '../domain/types.js';
 import { NotFoundError } from '../http/errors.js';
+import { sanitizeVisualizationPayload } from '../visualization/sanitize.js';
 import {
   type AgentSessionRepository,
   createAgentSessionRepository,
@@ -205,6 +206,7 @@ export type CodeSherpaDatabase = Readonly<{
   listPlans: () => ReadonlyArray<PlanSummary>;
   listProgressEvents: (limit?: number) => ReadonlyArray<ProgressEvent>;
   listTestRuns: (taskId: string) => ReadonlyArray<TestRun>;
+  listVisualizations: (taskId: string) => ReadonlyArray<Visualization>;
   markTaskDone: (id: string) => Task;
   recordTaskRun: (id: string, passed: boolean) => Task;
   saveSetup: (
@@ -613,19 +615,21 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
       });
     },
     createVisualization: (input) => {
+      const sanitizedPayload = sanitizeVisualizationPayload(input.kind, input.payload);
+
       return runInTransaction(db, () => {
         const id = `viz-${randomUUID()}`;
         const createdAt = nowIso();
         db.prepare(
           'INSERT INTO visualization (id, task_id, prompt, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-        ).run(id, input.taskId, input.prompt, input.kind, input.payload, createdAt);
+        ).run(id, input.taskId, input.prompt, input.kind, sanitizedPayload, createdAt);
         insertProgressEvent('visualization_created', 'task', input.taskId, { kind: input.kind });
 
         return {
           createdAt,
           id,
           kind: input.kind,
-          payload: input.payload,
+          payload: sanitizedPayload,
           prompt: input.prompt,
           taskId: input.taskId,
         };
@@ -730,6 +734,13 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
       }
 
       return mapVisualization(row);
+    },
+    listVisualizations: (taskId: string) => {
+      const rows = db
+        .prepare('SELECT * FROM visualization WHERE task_id = ? ORDER BY created_at ASC')
+        .all(taskId) as unknown as ReadonlyArray<VisualizationRow>;
+
+      return rows.map(mapVisualization);
     },
     listChatMessages: (taskId: string) => {
       const rows = db

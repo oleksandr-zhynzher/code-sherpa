@@ -26,6 +26,7 @@ import {
   ConflictError,
   errorResponse,
   NotFoundError,
+  ValidationError,
   validationErrorResponse,
 } from './http/errors.js';
 import {
@@ -86,6 +87,10 @@ export function registerRoutes(server: FastifyInstance): void {
 
     if (error instanceof ConflictError) {
       return reply.status(409).send(errorResponse('CONFLICT', error.message));
+    }
+
+    if (error instanceof ValidationError) {
+      return reply.status(422).send(errorResponse('VALIDATION_ERROR', error.message));
     }
 
     server.log.error(error);
@@ -444,5 +449,11 @@ export function registerRoutes(server: FastifyInstance): void {
   server.get('/api/visualizations/:id', async (request) => {
     const params = idParamsSchema.parse(request.params);
     return server.codeSherpa.db.getVisualization(params.id);
+  });
+
+  server.get('/api/tasks/:id/visualizations', async (request) => {
+    const params = idParamsSchema.parse(request.params);
+
+    return { visualizations: server.codeSherpa.db.listVisualizations(params.id) };
   });
 }

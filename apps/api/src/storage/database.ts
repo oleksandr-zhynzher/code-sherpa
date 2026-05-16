@@ -1,15 +1,18 @@
+import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 import { generatePlanTemplate } from '../domain/planner.js';
 import type {
+  ChatMessage,
   PlanDetail,
   PlanSummary,
   SetupState,
   Task,
   TaskContext,
   Topic,
+  Visualization,
 } from '../domain/types.js';
 import { NotFoundError } from '../http/errors.js';
 
@@ -56,13 +59,44 @@ type SettingsRow = Readonly<{
   workspace_path: string;
 }>;
 
+type ChatMessageRow = Readonly<{
+  content_md: string;
+  created_at: string;
+  id: string;
+  role: ChatMessage['role'];
+  task_id: string;
+}>;
+
+type VisualizationRow = Readonly<{
+  created_at: string;
+  id: string;
+  kind: Visualization['kind'];
+  payload: string;
+  prompt: string;
+  task_id: string;
+}>;
+
 export type CodeSherpaDatabase = Readonly<{
   close: () => void;
+  addChatMessage: (
+    input: Readonly<{ contentMd: string; role: ChatMessage['role']; taskId: string }>,
+  ) => ChatMessage;
+  createVisualization: (
+    input: Readonly<{
+      kind: Visualization['kind'];
+      payload: string;
+      prompt: string;
+      taskId: string;
+    }>,
+  ) => Visualization;
   createPlan: (goal: string) => PlanDetail;
   getPlan: (id: string) => PlanDetail;
   getSetup: (workspacePath: string) => SetupState;
   getTask: (id: string) => Task;
   getTaskContext: (id: string) => TaskContext;
+  getTopic: (id: string) => Topic & Readonly<{ tasks: ReadonlyArray<Task> }>;
+  getVisualization: (id: string) => Visualization;
+  listChatMessages: (taskId: string) => ReadonlyArray<ChatMessage>;
   listPlans: () => ReadonlyArray<PlanSummary>;
   markTaskDone: (id: string) => Task;
   recordTaskRun: (id: string, passed: boolean) => Task;
@@ -74,6 +108,7 @@ export type CodeSherpaDatabase = Readonly<{
     }>,
   ) => SetupState;
   updateTaskFiles: (id: string, solutionPath: string, testPath: string) => Task;
+  updateTopicExplanation: (id: string, explanationMd: string) => Topic;
 }>;
 
 function nowIso(): string {
@@ -128,6 +163,27 @@ function mapTaskContext(row: TaskContextRow): TaskContext {
   };
 }
 
+function mapChatMessage(row: ChatMessageRow): ChatMessage {
+  return {
+    contentMd: row.content_md,
+    createdAt: row.created_at,
+    id: row.id,
+    role: row.role,
+    taskId: row.task_id,
+  };
+}
+
+function mapVisualization(row: VisualizationRow): Visualization {
+  return {
+    createdAt: row.created_at,
+    id: row.id,
+    kind: row.kind,
+    payload: row.payload,
+    prompt: row.prompt,
+    taskId: row.task_id,
+  };
+}
+
 function migrate(db: DatabaseSync): void {
   db.exec(`
     PRAGMA foreign_keys = ON;
@@ -172,6 +228,23 @@ function migrate(db: DatabaseSync): void {
       workspace_path TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS chat_message (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL REFERENCES task(id) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      content_md TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS visualization (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL REFERENCES task(id) ON DELETE CASCADE,
+      prompt TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
 }
 
@@ -211,8 +284,39 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
   migrate(db);
 
   return {
+    addChatMessage: (input) => {
+      const id = `msg-${randomUUID()}`;
+      const createdAt = nowIso();
+      db.prepare(
+        'INSERT INTO chat_message (id, task_id, role, content_md, created_at) VALUES (?, ?, ?, ?, ?)',
+      ).run(id, input.taskId, input.role, input.contentMd, createdAt);
+
+      return {
+        contentMd: input.contentMd,
+        createdAt,
+        id,
+        role: input.role,
+        taskId: input.taskId,
+      };
+    },
     close: () => {
       db.close();
+    },
+    createVisualization: (input) => {
+      const id = `viz-${randomUUID()}`;
+      const createdAt = nowIso();
+      db.prepare(
+        'INSERT INTO visualization (id, task_id, prompt, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      ).run(id, input.taskId, input.prompt, input.kind, input.payload, createdAt);
+
+      return {
+        createdAt,
+        id,
+        kind: input.kind,
+        payload: input.payload,
+        prompt: input.prompt,
+        taskId: input.taskId,
+      };
     },
     createPlan: (goal: string) => {
       const createdAt = nowIso();
@@ -302,6 +406,40 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
 
       return mapTaskContext(row);
     },
+    getTopic: (id: string) => {
+      const topicRow = db.prepare('SELECT * FROM topic WHERE id = ?').get(id) as unknown as
+        | TopicRow
+        | undefined;
+      if (topicRow === undefined) {
+        throw new NotFoundError(`Topic ${id} was not found`);
+      }
+
+      const tasks = db
+        .prepare('SELECT * FROM task WHERE topic_id = ? ORDER BY position ASC')
+        .all(id) as unknown as ReadonlyArray<TaskRow>;
+
+      return {
+        ...mapTopic(topicRow),
+        tasks: tasks.map(mapTask),
+      };
+    },
+    getVisualization: (id: string) => {
+      const row = db.prepare('SELECT * FROM visualization WHERE id = ?').get(id) as unknown as
+        | VisualizationRow
+        | undefined;
+      if (row === undefined) {
+        throw new NotFoundError(`Visualization ${id} was not found`);
+      }
+
+      return mapVisualization(row);
+    },
+    listChatMessages: (taskId: string) => {
+      const rows = db
+        .prepare('SELECT * FROM chat_message WHERE task_id = ? ORDER BY created_at ASC')
+        .all(taskId) as unknown as ReadonlyArray<ChatMessageRow>;
+
+      return rows.map(mapChatMessage);
+    },
     listPlans: () => {
       const rows = db
         .prepare(
@@ -369,6 +507,17 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
       ).run(solutionPath, testPath, id);
 
       return getTaskById(db, id);
+    },
+    updateTopicExplanation: (id: string, explanationMd: string) => {
+      db.prepare('UPDATE topic SET explanation_md = ? WHERE id = ?').run(explanationMd, id);
+      const row = db.prepare('SELECT * FROM topic WHERE id = ?').get(id) as unknown as
+        | TopicRow
+        | undefined;
+      if (row === undefined) {
+        throw new NotFoundError(`Topic ${id} was not found`);
+      }
+
+      return mapTopic(row);
     },
   };
 }

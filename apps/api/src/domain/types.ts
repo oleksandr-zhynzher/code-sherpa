@@ -50,3 +50,20 @@ export type TaskContext = Task &
   Readonly<{
     topicSlug: string;
   }>;
+
+export type ChatMessage = Readonly<{
+  contentMd: string;
+  createdAt: string;
+  id: string;
+  role: 'assistant' | 'tool' | 'user';
+  taskId: string;
+}>;
+
+export type Visualization = Readonly<{
+  createdAt: string;
+  id: string;
+  kind: 'chartjs' | 'html' | 'mermaid' | 'svg';
+  payload: string;
+  prompt: string;
+  taskId: string;
+}>;

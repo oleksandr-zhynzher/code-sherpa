@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 
+import { answerTaskQuestion, explainTopic } from './agent/poc-agent.js';
 import {
+  chatRequestSchema,
   commitTaskSchema,
   createPlanSchema,
   setupSchema,
@@ -75,6 +77,18 @@ export function registerRoutes(server: FastifyInstance): void {
     return server.codeSherpa.db.getTask(params.id);
   });
 
+  server.get('/api/topics/:id', async (request) => {
+    const params = request.params as Readonly<{ id: string }>;
+    return server.codeSherpa.db.getTopic(params.id);
+  });
+
+  server.post('/api/topics/:id/explain', async (request) => {
+    const params = request.params as Readonly<{ id: string }>;
+    const topic = server.codeSherpa.db.getTopic(params.id);
+
+    return server.codeSherpa.db.updateTopicExplanation(params.id, explainTopic(topic));
+  });
+
   server.post('/api/tasks/:id/scaffold', async (request, reply) => {
     const params = request.params as Readonly<{ id: string }>;
     const context = server.codeSherpa.db.getTaskContext(params.id);
@@ -136,5 +150,46 @@ export function registerRoutes(server: FastifyInstance): void {
       result,
       task: updatedTask,
     };
+  });
+
+  server.get('/api/tasks/:id/chat', async (request) => {
+    const params = request.params as Readonly<{ id: string }>;
+    server.codeSherpa.db.getTask(params.id);
+
+    return {
+      data: server.codeSherpa.db.listChatMessages(params.id),
+    };
+  });
+
+  server.post('/api/tasks/:id/chat', async (request, reply) => {
+    const params = request.params as Readonly<{ id: string }>;
+    const input = chatRequestSchema.parse(request.body);
+    const task = server.codeSherpa.db.getTask(params.id);
+    const userMessage = server.codeSherpa.db.addChatMessage({
+      contentMd: input.message,
+      role: 'user',
+      taskId: params.id,
+    });
+    const answer = answerTaskQuestion(task, input.message);
+    const assistantMessage = server.codeSherpa.db.addChatMessage({
+      contentMd: answer.responseMd,
+      role: 'assistant',
+      taskId: params.id,
+    });
+    const visualization =
+      answer.visualization === undefined
+        ? null
+        : server.codeSherpa.db.createVisualization(answer.visualization);
+
+    return reply.status(201).send({
+      assistantMessage,
+      userMessage,
+      visualization,
+    });
+  });
+
+  server.get('/api/visualizations/:id', async (request) => {
+    const params = request.params as Readonly<{ id: string }>;
+    return server.codeSherpa.db.getVisualization(params.id);
   });
 }

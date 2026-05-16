@@ -17,6 +17,10 @@ export const commitTaskSchema = z.object({
   message: z.string().trim().min(3).max(120).optional(),
 });
 
+export const chatRequestSchema = z.object({
+  message: z.string().trim().min(1).max(2_000),
+});
+
 export const fsPathQuerySchema = z.object({
   path: z.string().trim().min(1).max(500),
 });

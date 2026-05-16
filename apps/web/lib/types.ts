@@ -152,3 +152,13 @@ export type ThreadMessage = Readonly<{
   role: 'assistant' | 'tool' | 'user';
   threadId: string;
 }>;
+
+export type GuideAction = 'break_it_down' | 'explain_concept' | 'explain_error' | 'small_hint';
+
+export type GuideActionContext = Readonly<{
+  code?: string;
+  exercisePrompt?: string;
+  selectedText?: string;
+  testOutput?: string;
+  topicMd?: string;
+}>;

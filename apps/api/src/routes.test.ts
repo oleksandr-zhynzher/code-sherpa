@@ -862,3 +862,71 @@ describe('chat threads', () => {
     await server.close();
   });
 });
+
+describe('guide actions', () => {
+  it('persists user prompt and agent reply in the thread', async () => {
+    const agentResponse = 'Try using a sliding window approach as a first hint.';
+    let promptCount = 0;
+    const server = await buildServer({
+      agentProcessRunner: async () => {
+        promptCount += 1;
+        return {
+          exitCode: 0,
+          stderr: '',
+          stdout: promptCount === 1 ? agentPlanJson : agentResponse,
+        };
+      },
+      dbPath: ':memory:',
+      logger: false,
+      workspacePath,
+    });
+
+    await server.inject({
+      method: 'POST',
+      payload: {
+        agentDriver: 'copilot',
+        copilotPath,
+        exerciseLanguage: 'python',
+        guideTone: 'direct',
+        safeRunChecks: true,
+      },
+      url: setupUrl,
+    });
+
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+    const taskId = planResponse.json().topics[0].tasks[0].id;
+
+    const threadResponse = await server.inject({
+      method: 'GET',
+      url: `/api/chat-threads?scopeType=task&scopeId=${taskId}`,
+    });
+    const threadId = threadResponse.json().thread.id;
+
+    const actionResponse = await server.inject({
+      method: 'POST',
+      payload: {
+        action: 'small_hint',
+        context: { exercisePrompt: 'Implement two pointers.' },
+      },
+      url: `/api/chat-threads/${threadId}/guide-action`,
+    });
+
+    expect(actionResponse.statusCode).toBe(201);
+    expect(actionResponse.json().userMessage.role).toBe('user');
+    expect(actionResponse.json().assistantMessage.role).toBe('assistant');
+    expect(actionResponse.json().assistantMessage.contentMd).toBe(agentResponse);
+
+    const messagesResponse = await server.inject({
+      method: 'GET',
+      url: `/api/chat-threads/${threadId}/messages`,
+    });
+
+    expect(messagesResponse.json().messages).toHaveLength(2);
+
+    await server.close();
+  });
+});

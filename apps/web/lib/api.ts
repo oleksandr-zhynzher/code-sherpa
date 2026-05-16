@@ -3,6 +3,8 @@ import type {
   ChatThread,
   ChatThreadScopeType,
   CodeGeneration,
+  GuideAction,
+  GuideActionContext,
   LearningPathDetail,
   LearningPathSummary,
   PlanDetail,
@@ -140,6 +142,14 @@ export const api = {
       body: JSON.stringify({ message }),
       method: 'POST',
     }),
+  postGuideAction: (threadId: string, action: GuideAction, context?: GuideActionContext) =>
+    request<Readonly<{ assistantMessage: ThreadMessage; userMessage: ThreadMessage }>>(
+      `/api/chat-threads/${threadId}/guide-action`,
+      {
+        body: JSON.stringify({ action, context }),
+        method: 'POST',
+      },
+    ),
   getTaskVisualizations: (taskId: string) =>
     request<Readonly<{ visualizations: ReadonlyArray<Visualization> }>>(
       `/api/tasks/${taskId}/visualizations`,

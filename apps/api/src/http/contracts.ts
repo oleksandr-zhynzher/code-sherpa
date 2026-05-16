@@ -78,6 +78,21 @@ export const threadScopeQuerySchema = z.object({
   scopeType: z.enum(['path', 'quiz', 'setup', 'task', 'topic']),
 });
 
+const guideActionContextSchema = z
+  .object({
+    code: z.string().max(10_000).optional(),
+    exercisePrompt: z.string().max(5_000).optional(),
+    selectedText: z.string().max(2_000).optional(),
+    testOutput: z.string().max(5_000).optional(),
+    topicMd: z.string().max(10_000).optional(),
+  })
+  .optional();
+
+export const guideActionSchema = z.object({
+  action: z.enum(['break_it_down', 'explain_concept', 'explain_error', 'small_hint']),
+  context: guideActionContextSchema,
+});
+
 export type CreatePlanInput = z.infer<typeof createPlanSchema>;
 export type CreateLearningPathInput = z.infer<typeof createLearningPathSchema>;
 export type SetupInput = z.infer<typeof setupSchema>;

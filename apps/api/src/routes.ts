@@ -9,12 +9,14 @@ import {
 } from './agent/app-flows.js';
 import { createAppAgentToolRegistry } from './agent/app-tools.js';
 import { createAgentDriverForSetup } from './agent/cli-driver.js';
+import { buildGuideActionPrompt } from './agent/prompts/guide-actions.js';
 import { createAgentSessionService } from './agent/session-service.js';
 import {
   agentRunRequestSchema,
   chatRequestSchema,
   commitTaskSchema,
   createLearningPathSchema,
+  guideActionSchema,
   idParamsSchema,
   progressListQuerySchema,
   repoLinkSchema,
@@ -444,6 +446,35 @@ export function registerRoutes(server: FastifyInstance): void {
     });
 
     return reply.status(201).send({ message: userMessage });
+  });
+
+  server.post('/api/chat-threads/:id/guide-action', async (request, reply) => {
+    const params = idParamsSchema.parse(request.params);
+    const input = guideActionSchema.parse(request.body);
+    const prompt = buildGuideActionPrompt(input.action, input.context ?? {});
+
+    const userMessage = server.codeSherpa.db.addThreadMessage({
+      contentMd: prompt,
+      role: 'user',
+      threadId: params.id,
+    });
+
+    const agent = await createConfiguredAgentService(server);
+    const result = await agent.service.run(
+      {
+        prompt,
+        systemPrompt: createTrustedAgentSystemPrompt(agent.setup),
+      },
+      { timeoutMs: 120_000 },
+    );
+
+    const assistantMessage = server.codeSherpa.db.addThreadMessage({
+      contentMd: result.contentMd,
+      role: 'assistant',
+      threadId: params.id,
+    });
+
+    return reply.status(201).send({ assistantMessage, userMessage });
   });
 
   server.get('/api/visualizations/:id', async (request) => {

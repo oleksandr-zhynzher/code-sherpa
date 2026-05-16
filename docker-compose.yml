@@ -1,8 +1,13 @@
+networks:
+  code-sherpa:
+    driver: bridge
+
 services:
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    container_name: code-sherpa-api
     environment:
       HOST: 0.0.0.0
       PORT: 8000
@@ -11,14 +16,26 @@ services:
     volumes:
       - ./workspace:/app/workspace
       - ./.code-sherpa:/app/.code-sherpa
+    networks:
+      - code-sherpa
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:8000/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    container_name: code-sherpa-web
     environment:
       NEXT_TELEMETRY_DISABLED: '1'
     ports:
       - '127.0.0.1:3000:3000'
+    networks:
+      - code-sherpa
     depends_on:
-      - api
+      api:
+        condition: service_healthy

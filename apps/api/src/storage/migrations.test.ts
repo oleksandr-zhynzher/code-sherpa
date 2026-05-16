@@ -30,9 +30,10 @@ describe('database migrations', () => {
 
     runMigrations(db);
 
-    expect(getAppliedMigrationVersions(db)).toEqual([1, 2, 3, 4]);
+    expect(getAppliedMigrationVersions(db)).toEqual([1, 2, 3, 4, 5]);
     expect(listTables(db)).toEqual(
       expect.arrayContaining([
+        'agent_session',
         'chat_message',
         'chat_thread',
         'code_generation',

@@ -283,6 +283,24 @@ function addProgressEventIndexes(db: DatabaseSync): void {
   `);
 }
 
+function createAgentSessionSchema(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS agent_session (
+      id TEXT PRIMARY KEY,
+      driver TEXT NOT NULL,
+      status TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      system_prompt TEXT,
+      response_md TEXT,
+      tool_calls_json TEXT NOT NULL DEFAULT '[]',
+      error_message TEXT,
+      duration_ms INTEGER,
+      started_at TEXT NOT NULL,
+      completed_at TEXT
+    );
+  `);
+}
+
 const migrations: ReadonlyArray<Migration> = [
   {
     name: 'create-base-poc-schema',
@@ -303,6 +321,11 @@ const migrations: ReadonlyArray<Migration> = [
     name: 'add-progress-event-indexes',
     run: addProgressEventIndexes,
     version: 4,
+  },
+  {
+    name: 'create-agent-session-schema',
+    run: createAgentSessionSchema,
+    version: 5,
   },
 ];
 

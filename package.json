@@ -16,12 +16,24 @@
     "format:check": "prettier --check .",
     "lint": "nx run-many -t lint --output-style=static",
     "lint:affected": "nx affected -t lint --output-style=static",
+    "prepare": "husky",
     "quality": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm run test",
     "test": "nx run-many -t test --output-style=static",
     "test:affected": "nx affected -t test --output-style=static",
     "typecheck": "tsc -b --pretty false"
   },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --max-warnings=0 --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
   "devDependencies": {
+    "@commitlint/cli": "^21.0.1",
+    "@commitlint/config-conventional": "^21.0.1",
     "@nx/js": "^22.7.2",
     "@nx/next": "^22.7.2",
     "@nx/node": "^22.7.2",
@@ -54,6 +66,8 @@
     "eslint-plugin-testing-library": "^6.5.0",
     "eslint-plugin-unicorn": "^48.0.1",
     "eslint-plugin-unused-imports": "^4.4.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "nx": "^22.7.2",
     "postcss": "^8.5.14",
     "prettier": "^3.8.3",

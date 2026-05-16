@@ -41,6 +41,9 @@ export type PlanDetail = PlanSummary &
     topics: ReadonlyArray<Topic>;
   }>;
 
+export type LearningPathSummary = PlanSummary;
+export type LearningPathDetail = PlanDetail;
+
 export type SetupState = Readonly<{
   agentDriver: 'claude' | 'copilot';
   autoSaveProgress: boolean;

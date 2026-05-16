@@ -1,7 +1,13 @@
 import { z } from 'zod';
 
-export const createPlanSchema = z.object({
+export const createLearningPathSchema = z.object({
   goal: z.string().trim().min(3).max(500),
+});
+
+export const createPlanSchema = createLearningPathSchema;
+
+export const idParamsSchema = z.object({
+  id: z.string().trim().min(1).max(200),
 });
 
 export const setupSchema = z.object({
@@ -32,4 +38,5 @@ export const fsPathQuerySchema = z.object({
 });
 
 export type CreatePlanInput = z.infer<typeof createPlanSchema>;
+export type CreateLearningPathInput = z.infer<typeof createLearningPathSchema>;
 export type SetupInput = z.infer<typeof setupSchema>;

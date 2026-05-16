@@ -5,7 +5,8 @@ import { answerTaskQuestion, explainTopic } from './agent/poc-agent.js';
 import {
   chatRequestSchema,
   commitTaskSchema,
-  createPlanSchema,
+  createLearningPathSchema,
+  idParamsSchema,
   setupSchema,
   solutionUpdateSchema,
 } from './http/contracts.js';
@@ -67,36 +68,52 @@ export function registerRoutes(server: FastifyInstance): void {
   }));
 
   server.post('/api/plans', async (request, reply) => {
-    const input = createPlanSchema.parse(request.body);
+    const input = createLearningPathSchema.parse(request.body);
     const plan = server.codeSherpa.db.createPlan(input.goal);
 
     return reply.status(201).send(plan);
   });
 
   server.get('/api/plans/:id', async (request) => {
-    const params = request.params as Readonly<{ id: string }>;
+    const params = idParamsSchema.parse(request.params);
+    return server.codeSherpa.db.getPlan(params.id);
+  });
+
+  server.get('/api/paths', async () => ({
+    data: server.codeSherpa.db.listPlans(),
+  }));
+
+  server.post('/api/paths', async (request, reply) => {
+    const input = createLearningPathSchema.parse(request.body);
+    const path = server.codeSherpa.db.createPlan(input.goal);
+
+    return reply.status(201).send(path);
+  });
+
+  server.get('/api/paths/:id', async (request) => {
+    const params = idParamsSchema.parse(request.params);
     return server.codeSherpa.db.getPlan(params.id);
   });
 
   server.get('/api/tasks/:id', async (request) => {
-    const params = request.params as Readonly<{ id: string }>;
+    const params = idParamsSchema.parse(request.params);
     return server.codeSherpa.db.getTask(params.id);
   });
 
   server.get('/api/topics/:id', async (request) => {
-    const params = request.params as Readonly<{ id: string }>;
+    const params = idParamsSchema.parse(request.params);
     return server.codeSherpa.db.getTopic(params.id);
   });
 
   server.post('/api/topics/:id/explain', async (request) => {
-    const params = request.params as Readonly<{ id: string }>;
+    const params = idParamsSchema.parse(request.params);
     const topic = server.codeSherpa.db.getTopic(params.id);
 
     return server.codeSherpa.db.updateTopicExplanation(params.id, explainTopic(topic));
   });
 
   server.post('/api/tasks/:id/scaffold', async (request, reply) => {
-    const params = request.params as Readonly<{ id: string }>;
+    const params = idParamsSchema.parse(request.params);
     const context = server.codeSherpa.db.getTaskContext(params.id);
     const scaffold = await scaffoldTask(server.codeSherpa.workspacePath, context);
     const task = server.codeSherpa.db.updateTaskFiles(
@@ -112,7 +129,7 @@ export function registerRoutes(server: FastifyInstance): void {
   });
 
   server.get('/api/tasks/:id/files', async (request) => {
-    const params = request.params as Readonly<{ id: string }>;
+    const params = idParamsSchema.parse(request.params);
     const task = server.codeSherpa.db.getTask(params.id);
 
     return {
@@ -122,7 +139,7 @@ export function registerRoutes(server: FastifyInstance): void {
   });
 
   server.put('/api/tasks/:id/solution', async (request) => {
-    const params = request.params as Readonly<{ id: string }>;
+    const params = idParamsSchema.parse(request.params);
     const input = solutionUpdateSchema.parse(request.body);
     const task = server.codeSherpa.db.getTask(params.id);
 
@@ -133,7 +150,7 @@ export function registerRoutes(server: FastifyInstance): void {
   });
 
   server.post('/api/tasks/:id/run', async (request) => {
-    const params = request.params as Readonly<{ id: string }>;
+    const params = idParamsSchema.parse(request.params);
     const task = server.codeSherpa.db.getTask(params.id);
     const result = await runTaskTests(server.codeSherpa.workspacePath, task);
     const updatedTask = server.codeSherpa.db.recordTaskRun(params.id, result.passed);
@@ -145,7 +162,7 @@ export function registerRoutes(server: FastifyInstance): void {
   });
 
   server.post('/api/tasks/:id/commit', async (request) => {
-    const params = request.params as Readonly<{ id: string }>;
+    const params = idParamsSchema.parse(request.params);
     const input = commitTaskSchema.parse(request.body);
     const task = server.codeSherpa.db.getTask(params.id);
     const message = input.message ?? `feat(${task.slug}): solve ${task.title}`;
@@ -159,7 +176,7 @@ export function registerRoutes(server: FastifyInstance): void {
   });
 
   server.get('/api/tasks/:id/chat', async (request) => {
-    const params = request.params as Readonly<{ id: string }>;
+    const params = idParamsSchema.parse(request.params);
     server.codeSherpa.db.getTask(params.id);
 
     return {
@@ -168,7 +185,7 @@ export function registerRoutes(server: FastifyInstance): void {
   });
 
   server.post('/api/tasks/:id/chat', async (request, reply) => {
-    const params = request.params as Readonly<{ id: string }>;
+    const params = idParamsSchema.parse(request.params);
     const input = chatRequestSchema.parse(request.body);
     const task = server.codeSherpa.db.getTask(params.id);
     const userMessage = server.codeSherpa.db.addChatMessage({
@@ -195,7 +212,7 @@ export function registerRoutes(server: FastifyInstance): void {
   });
 
   server.get('/api/visualizations/:id', async (request) => {
-    const params = request.params as Readonly<{ id: string }>;
+    const params = idParamsSchema.parse(request.params);
     return server.codeSherpa.db.getVisualization(params.id);
   });
 }

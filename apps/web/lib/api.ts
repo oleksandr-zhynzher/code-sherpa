@@ -1,5 +1,7 @@
 import type {
   ChatMessage,
+  LearningPathDetail,
+  LearningPathSummary,
   PlanDetail,
   PlanSummary,
   RunResult,
@@ -56,6 +58,11 @@ export const api = {
       body: JSON.stringify({}),
       method: 'POST',
     }),
+  createLearningPath: (goal: string) =>
+    request<LearningPathDetail>('/api/paths', {
+      body: JSON.stringify({ goal }),
+      method: 'POST',
+    }),
   createPlan: (goal: string) =>
     request<PlanDetail>('/api/plans', {
       body: JSON.stringify({ goal }),
@@ -66,6 +73,8 @@ export const api = {
       method: 'POST',
     }),
   getSetup: () => request<SetupState>('/api/setup'),
+  listLearningPaths: () =>
+    request<Readonly<{ data: ReadonlyArray<LearningPathSummary> }>>('/api/paths'),
   listPlans: () => request<Readonly<{ data: ReadonlyArray<PlanSummary> }>>('/api/plans'),
   readFiles: (taskId: string) =>
     request<Readonly<{ files: TaskFiles; task: Task }>>(`/api/tasks/${taskId}/files`),
@@ -87,5 +96,6 @@ export const api = {
     request<Readonly<{ files: TaskFiles; task: Task }>>(`/api/tasks/${taskId}/scaffold`, {
       method: 'POST',
     }),
+  showLearningPath: (pathId: string) => request<LearningPathDetail>(`/api/paths/${pathId}`),
   showPlan: (planId: string) => request<PlanDetail>(`/api/plans/${planId}`),
 };

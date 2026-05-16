@@ -46,6 +46,36 @@ describe('POC data API', () => {
     await server.close();
   });
 
+  it('exposes learning path aliases for the production contract', async () => {
+    const server = await buildServer({ dbPath: ':memory:', logger: false });
+
+    const createResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: 'hash maps for interviews' },
+      url: '/api/paths',
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    const path = createResponse.json();
+    expect(path.title).toContain('hash maps for interviews');
+
+    const listResponse = await server.inject({
+      method: 'GET',
+      url: '/api/paths',
+    });
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json().data).toHaveLength(1);
+
+    const detailResponse = await server.inject({
+      method: 'GET',
+      url: `/api/paths/${path.id}`,
+    });
+    expect(detailResponse.statusCode).toBe(200);
+    expect(detailResponse.json().id).toBe(path.id);
+
+    await server.close();
+  });
+
   it('saves setup settings without exposing secrets', async () => {
     const server = await buildServer({
       dbPath: ':memory:',

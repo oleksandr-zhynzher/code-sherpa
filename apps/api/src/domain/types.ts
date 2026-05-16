@@ -45,3 +45,8 @@ export type SetupState = Readonly<{
   repoUrl: string | null;
   workspacePath: string;
 }>;
+
+export type TaskContext = Task &
+  Readonly<{
+    topicSlug: string;
+  }>;

@@ -1,6 +1,6 @@
 import { type ZodError } from 'zod';
 
-export type ApiErrorCode = 'NOT_FOUND' | 'VALIDATION_ERROR' | 'INTERNAL_ERROR';
+export type ApiErrorCode = 'CONFLICT' | 'NOT_FOUND' | 'VALIDATION_ERROR' | 'INTERNAL_ERROR';
 
 export type ApiError = Readonly<{
   error: Readonly<{
@@ -14,6 +14,13 @@ export class NotFoundError extends Error {
   public constructor(message: string) {
     super(message);
     this.name = 'NotFoundError';
+  }
+}
+
+export class ConflictError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = 'ConflictError';
   }
 }
 

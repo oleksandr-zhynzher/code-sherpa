@@ -1,8 +1,25 @@
 import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 
-import { createPlanSchema, setupSchema } from './http/contracts.js';
-import { errorResponse, NotFoundError, validationErrorResponse } from './http/errors.js';
+import {
+  commitTaskSchema,
+  createPlanSchema,
+  setupSchema,
+  solutionUpdateSchema,
+} from './http/contracts.js';
+import {
+  ConflictError,
+  errorResponse,
+  NotFoundError,
+  validationErrorResponse,
+} from './http/errors.js';
+import {
+  commitTask,
+  readTaskFiles,
+  runTaskTests,
+  scaffoldTask,
+  writeSolution,
+} from './workspace/workspace.js';
 
 export function registerRoutes(server: FastifyInstance): void {
   server.setErrorHandler((error, _request, reply) => {
@@ -12,6 +29,10 @@ export function registerRoutes(server: FastifyInstance): void {
 
     if (error instanceof NotFoundError) {
       return reply.status(404).send(errorResponse('NOT_FOUND', error.message));
+    }
+
+    if (error instanceof ConflictError) {
+      return reply.status(409).send(errorResponse('CONFLICT', error.message));
     }
 
     server.log.error(error);
@@ -52,5 +73,68 @@ export function registerRoutes(server: FastifyInstance): void {
   server.get('/api/tasks/:id', async (request) => {
     const params = request.params as Readonly<{ id: string }>;
     return server.codeSherpa.db.getTask(params.id);
+  });
+
+  server.post('/api/tasks/:id/scaffold', async (request, reply) => {
+    const params = request.params as Readonly<{ id: string }>;
+    const context = server.codeSherpa.db.getTaskContext(params.id);
+    const scaffold = await scaffoldTask(server.codeSherpa.workspacePath, context);
+    const task = server.codeSherpa.db.updateTaskFiles(
+      params.id,
+      scaffold.solutionPath,
+      scaffold.testPath,
+    );
+
+    return reply.status(201).send({
+      files: scaffold.files,
+      task,
+    });
+  });
+
+  server.get('/api/tasks/:id/files', async (request) => {
+    const params = request.params as Readonly<{ id: string }>;
+    const task = server.codeSherpa.db.getTask(params.id);
+
+    return {
+      files: await readTaskFiles(server.codeSherpa.workspacePath, task),
+      task,
+    };
+  });
+
+  server.put('/api/tasks/:id/solution', async (request) => {
+    const params = request.params as Readonly<{ id: string }>;
+    const input = solutionUpdateSchema.parse(request.body);
+    const task = server.codeSherpa.db.getTask(params.id);
+
+    return {
+      files: await writeSolution(server.codeSherpa.workspacePath, task, input.content),
+      task,
+    };
+  });
+
+  server.post('/api/tasks/:id/run', async (request) => {
+    const params = request.params as Readonly<{ id: string }>;
+    const task = server.codeSherpa.db.getTask(params.id);
+    const result = await runTaskTests(server.codeSherpa.workspacePath, task);
+    const updatedTask = server.codeSherpa.db.recordTaskRun(params.id, result.passed);
+
+    return {
+      result,
+      task: updatedTask,
+    };
+  });
+
+  server.post('/api/tasks/:id/commit', async (request) => {
+    const params = request.params as Readonly<{ id: string }>;
+    const input = commitTaskSchema.parse(request.body);
+    const task = server.codeSherpa.db.getTask(params.id);
+    const message = input.message ?? `feat(${task.slug}): solve ${task.title}`;
+    const result = await commitTask(server.codeSherpa.workspacePath, task, message);
+    const updatedTask = server.codeSherpa.db.markTaskDone(params.id);
+
+    return {
+      result,
+      task: updatedTask,
+    };
   });
 }

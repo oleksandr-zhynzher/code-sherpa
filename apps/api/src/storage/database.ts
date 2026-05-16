@@ -3,7 +3,14 @@ import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 import { generatePlanTemplate } from '../domain/planner.js';
-import type { PlanDetail, PlanSummary, SetupState, Task, Topic } from '../domain/types.js';
+import type {
+  PlanDetail,
+  PlanSummary,
+  SetupState,
+  Task,
+  TaskContext,
+  Topic,
+} from '../domain/types.js';
 import { NotFoundError } from '../http/errors.js';
 
 type PlanRow = Readonly<{
@@ -41,6 +48,8 @@ type TaskRow = Readonly<{
   topic_id: string;
 }>;
 
+type TaskContextRow = TaskRow & Readonly<{ topic_slug: string }>;
+
 type SettingsRow = Readonly<{
   claude_path: string | null;
   repo_url: string | null;
@@ -53,7 +62,10 @@ export type CodeSherpaDatabase = Readonly<{
   getPlan: (id: string) => PlanDetail;
   getSetup: (workspacePath: string) => SetupState;
   getTask: (id: string) => Task;
+  getTaskContext: (id: string) => TaskContext;
   listPlans: () => ReadonlyArray<PlanSummary>;
+  markTaskDone: (id: string) => Task;
+  recordTaskRun: (id: string, passed: boolean) => Task;
   saveSetup: (
     input: Readonly<{
       claudePath?: string | undefined;
@@ -61,6 +73,7 @@ export type CodeSherpaDatabase = Readonly<{
       workspacePath: string;
     }>,
   ) => SetupState;
+  updateTaskFiles: (id: string, solutionPath: string, testPath: string) => Task;
 }>;
 
 function nowIso(): string {
@@ -105,6 +118,13 @@ function mapTask(row: TaskRow): Task {
     testPath: row.test_path,
     title: row.title,
     topicId: row.topic_id,
+  };
+}
+
+function mapTaskContext(row: TaskContextRow): TaskContext {
+  return {
+    ...mapTask(row),
+    topicSlug: row.topic_slug,
   };
 }
 
@@ -265,6 +285,23 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
 
       return mapTask(row);
     },
+    getTaskContext: (id: string) => {
+      const row = db
+        .prepare(
+          `
+          SELECT task.*, topic.slug AS topic_slug
+          FROM task
+          INNER JOIN topic ON topic.id = task.topic_id
+          WHERE task.id = ?
+        `,
+        )
+        .get(id) as unknown as TaskContextRow | undefined;
+      if (row === undefined) {
+        throw new NotFoundError(`Task ${id} was not found`);
+      }
+
+      return mapTaskContext(row);
+    },
     listPlans: () => {
       const rows = db
         .prepare(
@@ -287,6 +324,21 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
 
       return rows.map(mapPlan);
     },
+    markTaskDone: (id: string) => {
+      db.prepare("UPDATE task SET status = 'done' WHERE id = ?").run(id);
+      return getTaskById(db, id);
+    },
+    recordTaskRun: (id: string, passed: boolean) => {
+      db.prepare(
+        `
+        UPDATE task
+        SET status = ?, last_run_at = ?, last_run_pass = ?
+        WHERE id = ?
+      `,
+      ).run(passed ? 'passing' : 'in_progress', nowIso(), passed ? 1 : 0, id);
+
+      return getTaskById(db, id);
+    },
     saveSetup: (input) => {
       const updatedAt = nowIso();
       db.prepare(
@@ -307,7 +359,29 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
         workspacePath: input.workspacePath,
       };
     },
+    updateTaskFiles: (id: string, solutionPath: string, testPath: string) => {
+      db.prepare(
+        `
+        UPDATE task
+        SET solution_path = ?, test_path = ?, status = 'in_progress'
+        WHERE id = ?
+      `,
+      ).run(solutionPath, testPath, id);
+
+      return getTaskById(db, id);
+    },
   };
+}
+
+function getTaskById(db: DatabaseSync, id: string): Task {
+  const row = db.prepare('SELECT * FROM task WHERE id = ?').get(id) as unknown as
+    | TaskRow
+    | undefined;
+  if (row === undefined) {
+    throw new NotFoundError(`Task ${id} was not found`);
+  }
+
+  return mapTask(row);
 }
 
 function getPlanDetail(db: DatabaseSync, id: string): PlanDetail {

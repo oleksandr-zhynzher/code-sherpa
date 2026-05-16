@@ -26,6 +26,7 @@ import {
   threadScopeQuerySchema,
 } from './http/contracts.js';
 import {
+  AgentUnavailableError,
   ConflictError,
   errorResponse,
   NotFoundError,
@@ -57,6 +58,16 @@ async function getConfiguredWorkspacePath(server: FastifyInstance): Promise<stri
 
 async function createConfiguredAgentService(server: FastifyInstance) {
   const setup = getConfiguredSetup(server);
+
+  if (server.codeSherpa.agentProcessRunner === undefined) {
+    const configuredPath = setup.agentDriver === 'claude' ? setup.claudePath : setup.copilotPath;
+    if (configuredPath === null || configuredPath.trim().length === 0) {
+      throw new AgentUnavailableError(
+        `No ${setup.agentDriver} CLI path configured. Go to Setup to configure the agent.`,
+      );
+    }
+  }
+
   const workspacePath = await validateWorkspaceRoot(
     setup.workspacePath,
     server.codeSherpa.workspaceBasePath,
@@ -79,25 +90,45 @@ async function createConfiguredAgentService(server: FastifyInstance) {
 }
 
 export function registerRoutes(server: FastifyInstance): void {
-  server.setErrorHandler((error, _request, reply) => {
+  server.addHook('onSend', (_request, reply, _payload, done) => {
+    reply.header('X-Request-Id', _request.id);
+    done();
+  });
+
+  server.setErrorHandler((error, request, reply) => {
+    const requestId = request.id;
+
     if (error instanceof ZodError) {
-      return reply.status(422).send(validationErrorResponse(error));
+      return reply.status(422).send(validationErrorResponse(error, requestId));
     }
 
     if (error instanceof NotFoundError) {
-      return reply.status(404).send(errorResponse('NOT_FOUND', error.message));
+      return reply.status(404).send(errorResponse('NOT_FOUND', error.message, { requestId }));
     }
 
     if (error instanceof ConflictError) {
-      return reply.status(409).send(errorResponse('CONFLICT', error.message));
+      return reply.status(409).send(errorResponse('CONFLICT', error.message, { requestId }));
     }
 
     if (error instanceof ValidationError) {
-      return reply.status(422).send(errorResponse('VALIDATION_ERROR', error.message));
+      return reply
+        .status(422)
+        .send(errorResponse('VALIDATION_ERROR', error.message, { requestId }));
     }
 
-    server.log.error(error);
-    return reply.status(500).send(errorResponse('INTERNAL_ERROR', 'Unexpected server error'));
+    if (error instanceof AgentUnavailableError) {
+      return reply.status(503).send(
+        errorResponse('AGENT_UNAVAILABLE', error.message, {
+          requestId,
+          retryable: true,
+        }),
+      );
+    }
+
+    server.log.error({ err: error, requestId }, 'Unexpected error');
+    return reply
+      .status(500)
+      .send(errorResponse('INTERNAL_ERROR', 'Unexpected server error', { requestId }));
   });
 
   server.get('/api/setup', async () => {

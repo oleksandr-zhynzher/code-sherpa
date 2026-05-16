@@ -1086,3 +1086,60 @@ describe('security boundaries', () => {
     await server.close();
   });
 });
+
+describe('observability', () => {
+  it('returns X-Request-Id header on all responses', async () => {
+    const server = await buildServer({
+      dbPath: ':memory:',
+      logger: false,
+    });
+
+    const response = await server.inject({
+      method: 'GET',
+      url: '/api/setup',
+    });
+
+    expect(response.headers['x-request-id']).toBeDefined();
+    expect(typeof response.headers['x-request-id']).toBe('string');
+
+    await server.close();
+  });
+
+  it('returns 503 with retryable flag when no agent CLI is configured', async () => {
+    const server = await buildServer({
+      dbPath: ':memory:',
+      logger: false,
+    });
+
+    const response = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json().error.code).toBe('AGENT_UNAVAILABLE');
+    expect(response.json().error.retryable).toBe(true);
+    expect(response.json().error.requestId).toBeDefined();
+
+    await server.close();
+  });
+
+  it('includes requestId in validation error responses', async () => {
+    const server = await buildServer({
+      dbPath: ':memory:',
+      logger: false,
+    });
+
+    const response = await server.inject({
+      method: 'POST',
+      payload: { goal: '' },
+      url: plansUrl,
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error.requestId).toBeDefined();
+
+    await server.close();
+  });
+});

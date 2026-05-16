@@ -6,7 +6,7 @@ export default function SetupPage() {
     <ProductShell activePath="/setup">
       <section className="setup-preview">
         <div className="setup-preview__header">
-          <p className="home-preview__eyebrow">Get Set Up</p>
+          <p className="setup-preview__eyebrow">Get Set Up</p>
           <h1>Connect what you need, then start learning</h1>
         </div>
         <StatusBanner tone="success" title="All systems ready — you're good to go!">

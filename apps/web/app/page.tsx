@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 import { Logo } from '../components/ui/design-system';
 
 const learnerCards = [
@@ -58,7 +60,14 @@ export default function HomePage() {
       </nav>
 
       <section className="home-hero">
-        <img alt="" className="home-hero__image" src="/images/generated-1778944760160.png" />
+        <Image
+          alt=""
+          className="home-hero__image"
+          fill
+          priority
+          sizes="100vw"
+          src="/images/generated-1778944760160.jpg"
+        />
         <div className="home-hero__overlay" />
         <div className="home-hero__content">
           <p className="home-eyebrow">Your learning journey</p>
@@ -129,7 +138,14 @@ export default function HomePage() {
               far you&apos;ve come, you&apos;ll see the path was worth it.
             </p>
           </div>
-          <img alt="" className="home-sherpa__image" src="/images/generated-1778948563108.png" />
+          <Image
+            alt=""
+            className="home-sherpa__image"
+            height={768}
+            sizes="(min-width: 768px) 50vw, 100vw"
+            src="/images/generated-1778948563108.jpg"
+            width={1408}
+          />
         </div>
       </section>
 

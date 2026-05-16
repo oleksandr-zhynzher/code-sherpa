@@ -10,9 +10,16 @@
     "url": "git+https://github.com/oleksandr-zhynzher/code-sherpa.git"
   },
   "scripts": {
+    "build": "nx run-many -t build --output-style=static",
+    "build:affected": "nx affected -t build --output-style=static",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "nx run-many -t lint --output-style=static"
+    "lint": "nx run-many -t lint --output-style=static",
+    "lint:affected": "nx affected -t lint --output-style=static",
+    "quality": "npm run format:check && npm run lint && npm run typecheck && npm run build && npm run test",
+    "test": "nx run-many -t test --output-style=static",
+    "test:affected": "nx affected -t test --output-style=static",
+    "typecheck": "tsc -b --pretty false"
   },
   "devDependencies": {
     "@nx/js": "^22.7.2",

@@ -15,6 +15,9 @@ import type {
   Visualization,
 } from '../domain/types.js';
 import { NotFoundError } from '../http/errors.js';
+import { runMigrations } from './migrations.js';
+import { createSetupRepository } from './setup-repository.js';
+import { runInTransaction } from './transaction.js';
 
 type PlanRow = Readonly<{
   created_at: string;
@@ -52,18 +55,6 @@ type TaskRow = Readonly<{
 }>;
 
 type TaskContextRow = TaskRow & Readonly<{ topic_slug: string }>;
-
-type SettingsRow = Readonly<{
-  agent_driver: SetupState['agentDriver'];
-  auto_save_progress: number;
-  claude_path: string | null;
-  copilot_path: string | null;
-  exercise_language: SetupState['exerciseLanguage'];
-  guide_tone: SetupState['guideTone'];
-  repo_url: string | null;
-  safe_run_checks: number;
-  workspace_path: string;
-}>;
 
 type ChatMessageRow = Readonly<{
   content_md: string;
@@ -196,96 +187,6 @@ function mapVisualization(row: VisualizationRow): Visualization {
   };
 }
 
-function migrate(db: DatabaseSync): void {
-  db.exec(`
-    PRAGMA foreign_keys = ON;
-
-    CREATE TABLE IF NOT EXISTS plan (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      goal TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS topic (
-      id TEXT PRIMARY KEY,
-      plan_id TEXT NOT NULL REFERENCES plan(id) ON DELETE CASCADE,
-      position INTEGER NOT NULL,
-      slug TEXT NOT NULL,
-      title TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'todo',
-      explanation_md TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS task (
-      id TEXT PRIMARY KEY,
-      topic_id TEXT NOT NULL REFERENCES topic(id) ON DELETE CASCADE,
-      position INTEGER NOT NULL,
-      slug TEXT NOT NULL,
-      title TEXT NOT NULL,
-      difficulty TEXT NOT NULL,
-      prompt_md TEXT NOT NULL,
-      language TEXT NOT NULL DEFAULT 'python',
-      solution_path TEXT,
-      test_path TEXT,
-      status TEXT NOT NULL DEFAULT 'todo',
-      last_run_at TEXT,
-      last_run_pass INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS settings (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      agent_driver TEXT NOT NULL DEFAULT 'copilot',
-      copilot_path TEXT,
-      claude_path TEXT,
-      repo_url TEXT,
-      workspace_path TEXT NOT NULL,
-      exercise_language TEXT NOT NULL DEFAULT 'python',
-      safe_run_checks INTEGER NOT NULL DEFAULT 1,
-      auto_save_progress INTEGER NOT NULL DEFAULT 1,
-      guide_tone TEXT NOT NULL DEFAULT 'encouraging',
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS chat_message (
-      id TEXT PRIMARY KEY,
-      task_id TEXT NOT NULL REFERENCES task(id) ON DELETE CASCADE,
-      role TEXT NOT NULL,
-      content_md TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS visualization (
-      id TEXT PRIMARY KEY,
-      task_id TEXT NOT NULL REFERENCES task(id) ON DELETE CASCADE,
-      prompt TEXT NOT NULL,
-      kind TEXT NOT NULL,
-      payload TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-  `);
-
-  ensureSettingsColumn(db, 'agent_driver', "TEXT NOT NULL DEFAULT 'copilot'");
-  ensureSettingsColumn(db, 'copilot_path', 'TEXT');
-  ensureSettingsColumn(db, 'exercise_language', "TEXT NOT NULL DEFAULT 'python'");
-  ensureSettingsColumn(db, 'safe_run_checks', 'INTEGER NOT NULL DEFAULT 1');
-  ensureSettingsColumn(db, 'auto_save_progress', 'INTEGER NOT NULL DEFAULT 1');
-  ensureSettingsColumn(db, 'guide_tone', "TEXT NOT NULL DEFAULT 'encouraging'");
-}
-
-function ensureSettingsColumn(db: DatabaseSync, name: string, definition: string): void {
-  const rows = db.prepare('PRAGMA table_info(settings)').all() as unknown as ReadonlyArray<
-    Readonly<{
-      name: string;
-    }>
-  >;
-  if (rows.some((row) => row.name === name)) {
-    return;
-  }
-
-  db.exec(`ALTER TABLE settings ADD COLUMN ${name} ${definition}`);
-}
-
 function getPlanSummary(db: DatabaseSync, id: string): PlanSummary {
   const row = db
     .prepare(
@@ -319,7 +220,8 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
   }
 
   const db = new DatabaseSync(dbPath);
-  migrate(db);
+  runMigrations(db);
+  const setupRepository = createSetupRepository(db);
 
   return {
     addChatMessage: (input) => {
@@ -371,8 +273,7 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       );
 
-      db.exec('BEGIN');
-      try {
+      runInTransaction(db, () => {
         insertPlan.run(template.id, template.title, goal, createdAt);
         for (const topic of template.topics) {
           const topicId = `${template.id}-${topic.slug}`;
@@ -399,33 +300,12 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
             );
           }
         }
-        db.exec('COMMIT');
-      } catch (error) {
-        db.exec('ROLLBACK');
-        throw error;
-      }
+      });
 
       return getPlanDetail(db, template.id);
     },
     getPlan: (id: string) => getPlanDetail(db, id),
-    getSetup: (workspacePath: string) => {
-      const row = db.prepare('SELECT * FROM settings WHERE id = 1').get() as
-        | SettingsRow
-        | undefined;
-
-      return {
-        agentDriver: row?.agent_driver ?? 'copilot',
-        autoSaveProgress:
-          row?.auto_save_progress === undefined ? true : row.auto_save_progress === 1,
-        claudePath: row?.claude_path ?? null,
-        copilotPath: row?.copilot_path ?? null,
-        exerciseLanguage: row?.exercise_language ?? 'python',
-        guideTone: row?.guide_tone ?? 'encouraging',
-        repoUrl: row?.repo_url ?? null,
-        safeRunChecks: row?.safe_run_checks === undefined ? true : row.safe_run_checks === 1,
-        workspacePath: row?.workspace_path ?? workspacePath,
-      };
-    },
+    getSetup: setupRepository.getSetup,
     getTask: (id: string) => {
       const row = db.prepare('SELECT * FROM task WHERE id = ?').get(id) as TaskRow | undefined;
       if (row === undefined) {
@@ -522,61 +402,7 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
 
       return getTaskById(db, id);
     },
-    saveSetup: (input) => {
-      const updatedAt = nowIso();
-      db.prepare(
-        `
-        INSERT INTO settings (
-          id,
-          agent_driver,
-          copilot_path,
-          claude_path,
-          repo_url,
-          workspace_path,
-          exercise_language,
-          safe_run_checks,
-          auto_save_progress,
-          guide_tone,
-          updated_at
-        )
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          agent_driver = excluded.agent_driver,
-          copilot_path = excluded.copilot_path,
-          claude_path = excluded.claude_path,
-          repo_url = excluded.repo_url,
-          workspace_path = excluded.workspace_path,
-          exercise_language = excluded.exercise_language,
-          safe_run_checks = excluded.safe_run_checks,
-          auto_save_progress = excluded.auto_save_progress,
-          guide_tone = excluded.guide_tone,
-          updated_at = excluded.updated_at
-      `,
-      ).run(
-        input.agentDriver,
-        input.copilotPath ?? null,
-        input.claudePath ?? null,
-        input.repoUrl ?? null,
-        input.workspacePath,
-        input.exerciseLanguage,
-        input.safeRunChecks ? 1 : 0,
-        input.autoSaveProgress ? 1 : 0,
-        input.guideTone,
-        updatedAt,
-      );
-
-      return {
-        agentDriver: input.agentDriver,
-        autoSaveProgress: input.autoSaveProgress,
-        claudePath: input.claudePath ?? null,
-        copilotPath: input.copilotPath ?? null,
-        exerciseLanguage: input.exerciseLanguage,
-        guideTone: input.guideTone,
-        repoUrl: input.repoUrl ?? null,
-        safeRunChecks: input.safeRunChecks,
-        workspacePath: input.workspacePath,
-      };
-    },
+    saveSetup: setupRepository.saveSetup,
     updateTaskFiles: (id: string, solutionPath: string, testPath: string) => {
       db.prepare(
         `

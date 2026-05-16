@@ -11,6 +11,7 @@ import type {
   SetupState,
   Task,
   TaskFiles,
+  TestRun,
   Visualization,
   WorkspaceStatus,
 } from './types';
@@ -90,9 +91,11 @@ export const api = {
   readFiles: (taskId: string) =>
     request<Readonly<{ files: TaskFiles; task: Task }>>(`/api/tasks/${taskId}/files`),
   runTask: (taskId: string) =>
-    request<Readonly<{ result: RunResult; task: Task }>>(`/api/tasks/${taskId}/run`, {
+    request<Readonly<{ result: RunResult; run: TestRun; task: Task }>>(`/api/tasks/${taskId}/run`, {
       method: 'POST',
     }),
+  getTaskRuns: (taskId: string) =>
+    request<Readonly<{ runs: ReadonlyArray<TestRun> }>>(`/api/tasks/${taskId}/runs`),
   saveSetup: (input: SetupState) =>
     request<SetupState>('/api/setup', {
       body: JSON.stringify(input),

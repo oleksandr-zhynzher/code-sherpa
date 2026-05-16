@@ -15,6 +15,7 @@ import type {
   SetupState,
   Task,
   TaskContext,
+  TestRun,
   Topic,
   Visualization,
 } from '../domain/types.js';
@@ -100,6 +101,17 @@ type CodeGenerationRow = Readonly<{
   updated_at: string;
 }>;
 
+type TestRunRow = Readonly<{
+  command: string;
+  created_at: string;
+  duration_ms: number | null;
+  exit_code: number;
+  id: string;
+  output: string;
+  passed: number;
+  task_id: string;
+}>;
+
 const selectTopicByIdSql = 'SELECT * FROM topic WHERE id = ?';
 const selectTaskByIdSql = 'SELECT * FROM task WHERE id = ?';
 
@@ -136,6 +148,16 @@ export type CodeSherpaDatabase = Readonly<{
       taskId: string;
     }>,
   ) => CodeGeneration;
+  createTestRun: (
+    input: Readonly<{
+      command: string;
+      durationMs?: number | undefined;
+      exitCode: number;
+      output: string;
+      passed: boolean;
+      taskId: string;
+    }>,
+  ) => TestRun;
   createVisualization: (
     input: Readonly<{
       kind: Visualization['kind'];
@@ -157,6 +179,7 @@ export type CodeSherpaDatabase = Readonly<{
   listChatMessages: (taskId: string) => ReadonlyArray<ChatMessage>;
   listPlans: () => ReadonlyArray<PlanSummary>;
   listProgressEvents: (limit?: number) => ReadonlyArray<ProgressEvent>;
+  listTestRuns: (taskId: string) => ReadonlyArray<TestRun>;
   markTaskDone: (id: string) => Task;
   recordTaskRun: (id: string, passed: boolean) => Task;
   saveSetup: (
@@ -290,6 +313,19 @@ function mapCodeGeneration(row: CodeGenerationRow): CodeGeneration {
     status: row.status,
     taskId: row.task_id,
     updatedAt: row.updated_at,
+  };
+}
+
+function mapTestRun(row: TestRunRow): TestRun {
+  return {
+    command: row.command,
+    createdAt: row.created_at,
+    durationMs: row.duration_ms,
+    exitCode: row.exit_code,
+    id: row.id,
+    output: row.output,
+    passed: row.passed === 1,
+    taskId: row.task_id,
   };
 }
 
@@ -504,6 +540,39 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
       return insertPlanDraft(goal, template);
     },
     createPlanFromDraft: (goal, draft) => insertPlanDraft(goal, draft),
+    createTestRun: (input) => {
+      return runInTransaction(db, () => {
+        const id = `run-${randomUUID()}`;
+        const createdAt = nowIso();
+        db.prepare(
+          `INSERT INTO test_run (id, task_id, command, exit_code, output, passed, duration_ms, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
+          id,
+          input.taskId,
+          input.command,
+          input.exitCode,
+          input.output,
+          input.passed ? 1 : 0,
+          input.durationMs ?? null,
+          createdAt,
+        );
+        insertProgressEvent(input.passed ? 'task_passed' : 'task_failed', 'task', input.taskId, {
+          exitCode: input.exitCode,
+        });
+
+        return {
+          command: input.command,
+          createdAt,
+          durationMs: input.durationMs ?? null,
+          exitCode: input.exitCode,
+          id,
+          output: input.output,
+          passed: input.passed,
+          taskId: input.taskId,
+        };
+      });
+    },
     getLatestCodeGeneration: (taskId: string) => {
       const row = db
         .prepare(
@@ -596,6 +665,13 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
       return rows.map(mapPlan);
     },
     listProgressEvents: (limit) => listProgressEvents(db, limit),
+    listTestRuns: (taskId: string) => {
+      const rows = db
+        .prepare('SELECT * FROM test_run WHERE task_id = ? ORDER BY created_at DESC')
+        .all(taskId) as unknown as ReadonlyArray<TestRunRow>;
+
+      return rows.map(mapTestRun);
+    },
     markTaskDone: (id: string) => {
       getTaskById(db, id);
       runInTransaction(db, () => {

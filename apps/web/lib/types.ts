@@ -122,3 +122,14 @@ export type CodeGeneration = Readonly<{
   taskId: string;
   updatedAt: string;
 }>;
+
+export type TestRun = Readonly<{
+  command: string;
+  createdAt: string;
+  durationMs: number | null;
+  exitCode: number;
+  id: string;
+  output: string;
+  passed: boolean;
+  taskId: string;
+}>;

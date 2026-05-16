@@ -323,12 +323,32 @@ export function registerRoutes(server: FastifyInstance): void {
   server.post('/api/tasks/:id/run', async (request) => {
     const params = idParamsSchema.parse(request.params);
     const task = server.codeSherpa.db.getTask(params.id);
+    const startMs = Date.now();
     const result = await runTaskTests(await getConfiguredWorkspacePath(server), task);
+    const durationMs = Date.now() - startMs;
     const updatedTask = server.codeSherpa.db.recordTaskRun(params.id, result.passed);
+    const run = server.codeSherpa.db.createTestRun({
+      command: `python3 ${task.testPath ?? ''}`,
+      durationMs,
+      exitCode: result.exitCode,
+      output: result.output,
+      passed: result.passed,
+      taskId: params.id,
+    });
 
     return {
       result,
+      run,
       task: updatedTask,
+    };
+  });
+
+  server.get('/api/tasks/:id/runs', async (request) => {
+    const params = idParamsSchema.parse(request.params);
+    server.codeSherpa.db.getTask(params.id);
+
+    return {
+      runs: server.codeSherpa.db.listTestRuns(params.id),
     };
   });
 

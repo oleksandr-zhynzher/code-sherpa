@@ -664,3 +664,77 @@ describe('code generation lifecycle', () => {
     await server.close();
   });
 });
+
+describe('test run lifecycle', () => {
+  it('records a test run when running a scaffolded task and lists it', async () => {
+    const workspaceBasePath = await mkdtemp(join(tmpdir(), tempBaseDirPrefix));
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+      workspaceBasePath,
+      workspacePath: join(workspaceBasePath, 'workspace'),
+    });
+
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+    const taskId = planResponse.json().topics[0].tasks[0].id;
+    await server.inject({ method: 'POST', url: `/api/tasks/${taskId}/scaffold` });
+
+    const runResponse = await server.inject({
+      method: 'POST',
+      url: `/api/tasks/${taskId}/run`,
+    });
+
+    expect(runResponse.statusCode).toBe(200);
+    const runBody = runResponse.json();
+    expect(runBody.run).toMatchObject({
+      id: expect.stringContaining('run-'),
+      taskId,
+      passed: expect.any(Boolean),
+      exitCode: expect.any(Number),
+      command: expect.stringContaining('python3'),
+      durationMs: expect.any(Number),
+    });
+
+    const runsResponse = await server.inject({
+      method: 'GET',
+      url: `/api/tasks/${taskId}/runs`,
+    });
+
+    expect(runsResponse.statusCode).toBe(200);
+    expect(runsResponse.json().runs).toHaveLength(1);
+    expect(runsResponse.json().runs[0].id).toBe(runBody.run.id);
+
+    await server.close();
+    await rm(workspaceBasePath, { force: true, recursive: true });
+  });
+
+  it('returns an empty runs list before any test run', async () => {
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+    });
+
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+    const taskId = planResponse.json().topics[0].tasks[0].id;
+
+    const runsResponse = await server.inject({
+      method: 'GET',
+      url: `/api/tasks/${taskId}/runs`,
+    });
+
+    expect(runsResponse.statusCode).toBe(200);
+    expect(runsResponse.json().runs).toHaveLength(0);
+
+    await server.close();
+  });
+});

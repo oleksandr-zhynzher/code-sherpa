@@ -93,6 +93,13 @@ export const guideActionSchema = z.object({
   context: guideActionContextSchema,
 });
 
+export const createVisualizationSchema = z.object({
+  kind: z.enum(['chartjs', 'mermaid', 'svg']),
+  payload: z.string().trim().min(1).max(50_000),
+  prompt: z.string().trim().min(1).max(500),
+  taskId: z.string().trim().min(1).max(200),
+});
+
 export type CreatePlanInput = z.infer<typeof createPlanSchema>;
 export type CreateLearningPathInput = z.infer<typeof createLearningPathSchema>;
 export type SetupInput = z.infer<typeof setupSchema>;

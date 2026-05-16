@@ -930,3 +930,159 @@ describe('guide actions', () => {
     await server.close();
   });
 });
+
+describe('security boundaries', () => {
+  it('rejects visualization payloads with unsafe SVG content', async () => {
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+      workspacePath,
+    });
+
+    await server.inject({
+      method: 'POST',
+      payload: {
+        agentDriver: 'copilot',
+        copilotPath,
+        exerciseLanguage: 'python',
+        guideTone: 'direct',
+        safeRunChecks: true,
+      },
+      url: setupUrl,
+    });
+
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+    const taskId = planResponse.json().topics[0].tasks[0].id;
+
+    const response = await server.inject({
+      method: 'POST',
+      payload: {
+        kind: 'svg',
+        payload: '<svg><script>alert(1)</script></svg>',
+        prompt: 'unsafe chart',
+        taskId,
+      },
+      url: '/api/visualizations',
+    });
+
+    expect(response.statusCode).toBe(422);
+
+    await server.close();
+  });
+
+  it('rejects html visualization kind outright', async () => {
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+      workspacePath,
+    });
+
+    await server.inject({
+      method: 'POST',
+      payload: {
+        agentDriver: 'copilot',
+        copilotPath,
+        exerciseLanguage: 'python',
+        guideTone: 'direct',
+        safeRunChecks: true,
+      },
+      url: setupUrl,
+    });
+
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+    const taskId = planResponse.json().topics[0].tasks[0].id;
+
+    const response = await server.inject({
+      method: 'POST',
+      payload: {
+        kind: 'html',
+        payload: '<div>hello</div>',
+        prompt: 'test',
+        taskId,
+      },
+      url: '/api/visualizations',
+    });
+
+    expect(response.statusCode).toBe(422);
+
+    await server.close();
+  });
+
+  it('rejects guide action context that exceeds the code size limit', async () => {
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+      workspacePath,
+    });
+
+    await server.inject({
+      method: 'POST',
+      payload: {
+        agentDriver: 'copilot',
+        copilotPath,
+        exerciseLanguage: 'python',
+        guideTone: 'direct',
+        safeRunChecks: true,
+      },
+      url: setupUrl,
+    });
+
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+    const taskId = planResponse.json().topics[0].tasks[0].id;
+
+    const threadResponse = await server.inject({
+      method: 'GET',
+      url: `/api/chat-threads?scopeType=task&scopeId=${taskId}`,
+    });
+    const threadId = threadResponse.json().thread.id;
+
+    const response = await server.inject({
+      method: 'POST',
+      payload: {
+        action: 'small_hint',
+        context: { code: 'x'.repeat(10_001) },
+      },
+      url: `/api/chat-threads/${threadId}/guide-action`,
+    });
+
+    expect(response.statusCode).toBe(422);
+
+    await server.close();
+  });
+
+  it('rejects repo URLs with embedded credentials', async () => {
+    const server = await buildServer({
+      dbPath: ':memory:',
+      logger: false,
+      workspacePath,
+    });
+
+    const response = await server.inject({
+      method: 'POST',
+      payload: {
+        repoUrl: 'https://user:token@github.com/owner/repo',
+        workspacePath,
+      },
+      url: repoLinkUrl,
+    });
+
+    expect(response.statusCode).toBe(422);
+
+    await server.close();
+  });
+});

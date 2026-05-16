@@ -16,6 +16,7 @@ import {
   chatRequestSchema,
   commitTaskSchema,
   createLearningPathSchema,
+  createVisualizationSchema,
   guideActionSchema,
   idParamsSchema,
   progressListQuerySchema,
@@ -475,6 +476,12 @@ export function registerRoutes(server: FastifyInstance): void {
     });
 
     return reply.status(201).send({ assistantMessage, userMessage });
+  });
+
+  server.post('/api/visualizations', async (request, reply) => {
+    const input = createVisualizationSchema.parse(request.body);
+    const visualization = server.codeSherpa.db.createVisualization(input);
+    return reply.status(201).send({ visualization });
   });
 
   server.get('/api/visualizations/:id', async (request) => {

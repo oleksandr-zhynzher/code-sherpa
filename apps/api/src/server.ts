@@ -1,10 +1,12 @@
 import cors from '@fastify/cors';
 import Fastify, { type FastifyInstance } from 'fastify';
 
+import type { CliProcessRunner } from './agent/cli-driver.js';
 import { registerRoutes } from './routes.js';
 import { type CodeSherpaDatabase, createDatabase } from './storage/database.js';
 
 export type ServerOptions = Readonly<{
+  agentProcessRunner?: CliProcessRunner | undefined;
   dbPath?: string;
   logger?: boolean;
   workspacePath?: string;
@@ -13,6 +15,7 @@ export type ServerOptions = Readonly<{
 declare module 'fastify' {
   interface FastifyInstance {
     codeSherpa: Readonly<{
+      agentProcessRunner?: CliProcessRunner | undefined;
       db: CodeSherpaDatabase;
       workspacePath: string;
     }>;
@@ -26,6 +29,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
   const db = createDatabase(options.dbPath ?? './code-sherpa.db');
 
   server.decorate('codeSherpa', {
+    agentProcessRunner: options.agentProcessRunner,
     db,
     workspacePath: options.workspacePath ?? './workspace',
   });

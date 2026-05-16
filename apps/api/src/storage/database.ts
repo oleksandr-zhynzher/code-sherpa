@@ -17,6 +17,10 @@ import type {
   Visualization,
 } from '../domain/types.js';
 import { NotFoundError } from '../http/errors.js';
+import {
+  type AgentSessionRepository,
+  createAgentSessionRepository,
+} from './agent-session-repository.js';
 import { runMigrations } from './migrations.js';
 import { createSetupRepository } from './setup-repository.js';
 import { runInTransaction } from './transaction.js';
@@ -88,6 +92,7 @@ const selectTopicByIdSql = 'SELECT * FROM topic WHERE id = ?';
 const selectTaskByIdSql = 'SELECT * FROM task WHERE id = ?';
 
 export type CodeSherpaDatabase = Readonly<{
+  agentSessions: AgentSessionRepository;
   close: () => void;
   addChatMessage: (
     input: Readonly<{ contentMd: string; role: ChatMessage['role']; taskId: string }>,
@@ -271,6 +276,7 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
 
   const db = new DatabaseSync(dbPath);
   runMigrations(db);
+  const agentSessions = createAgentSessionRepository(db);
   const setupRepository = createSetupRepository(db);
   const insertProgressEvent = (
     eventType: string,
@@ -299,6 +305,7 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
   };
 
   return {
+    agentSessions,
     addChatMessage: (input) => {
       return runInTransaction(db, () => {
         const id = `msg-${randomUUID()}`;

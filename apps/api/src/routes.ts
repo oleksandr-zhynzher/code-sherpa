@@ -1,8 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 
+import { createAgentDriverForSetup } from './agent/cli-driver.js';
 import { answerTaskQuestion, explainTopic } from './agent/poc-agent.js';
+import { createAgentSessionService } from './agent/session-service.js';
+import type { SetupState } from './domain/types.js';
 import {
+  agentRunRequestSchema,
   chatRequestSchema,
   commitTaskSchema,
   createLearningPathSchema,
@@ -24,6 +28,28 @@ import {
   scaffoldTask,
   writeSolution,
 } from './workspace/workspace.js';
+
+function createConfiguredAgentService(server: FastifyInstance) {
+  const setup = server.codeSherpa.db.getSetup(server.codeSherpa.workspacePath);
+  const driver = createAgentDriverForSetup({
+    runner: server.codeSherpa.agentProcessRunner,
+    setup,
+    workspacePath: server.codeSherpa.workspacePath,
+  });
+
+  return {
+    driver,
+    service: createAgentSessionService({
+      driver,
+      store: server.codeSherpa.db.agentSessions,
+    }),
+    setup,
+  };
+}
+
+function createTrustedAgentSystemPrompt(setup: SetupState): string {
+  return `You are Code Sherpa, a ${setup.guideTone} DSA tutor. Explain concepts without executing commands or editing files.`;
+}
 
 export function registerRoutes(server: FastifyInstance): void {
   server.setErrorHandler((error, _request, reply) => {
@@ -55,6 +81,33 @@ export function registerRoutes(server: FastifyInstance): void {
     return {
       data: server.codeSherpa.db.listProgressEvents(query.limit),
     };
+  });
+
+  server.get('/api/agent/health', async () => {
+    const agent = createConfiguredAgentService(server);
+    const health = await agent.service.healthCheck({ timeoutMs: 30_000 });
+
+    return {
+      driver: agent.driver.kind,
+      health,
+    };
+  });
+
+  server.post('/api/agent/run', async (request, reply) => {
+    const input = agentRunRequestSchema.parse(request.body);
+    const agent = createConfiguredAgentService(server);
+    const result = await agent.service.run(
+      {
+        prompt: input.prompt,
+        systemPrompt: createTrustedAgentSystemPrompt(agent.setup),
+      },
+      { timeoutMs: 120_000 },
+    );
+
+    return reply.status(201).send({
+      driver: agent.driver.kind,
+      result,
+    });
   });
 
   server.post('/api/setup', async (request, reply) => {

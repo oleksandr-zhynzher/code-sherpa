@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
+import type { CliProcessRunner } from './agent/cli-driver.js';
 import { buildServer } from './server.js';
 
 const plansUrl = '/api/plans';
+const setupUrl = '/api/setup';
+const workspacePath = '/tmp/code-sherpa-workspace';
+const claudePath = '/opt/bin/claude';
+const copilotPath = '/opt/bin/copilot';
 
 describe('POC data API', () => {
   it('creates and returns a learning plan with topics and tasks', async () => {
@@ -95,7 +100,7 @@ describe('POC data API', () => {
     const server = await buildServer({
       dbPath: ':memory:',
       logger: false,
-      workspacePath: '/tmp/code-sherpa-workspace',
+      workspacePath,
     });
 
     const response = await server.inject({
@@ -110,7 +115,7 @@ describe('POC data API', () => {
         autoSaveProgress: false,
         repoUrl: 'git@github.com:example/algorithms.git',
       },
-      url: '/api/setup',
+      url: setupUrl,
     });
 
     expect(response.statusCode).toBe(200);
@@ -123,8 +128,129 @@ describe('POC data API', () => {
       guideTone: 'encouraging',
       repoUrl: 'git@github.com:example/algorithms.git',
       safeRunChecks: true,
-      workspacePath: '/tmp/code-sherpa-workspace',
+      workspacePath,
     });
+
+    await server.close();
+  });
+
+  it('normalizes blank CLI paths when saving setup settings', async () => {
+    const server = await buildServer({
+      dbPath: ':memory:',
+      logger: false,
+      workspacePath,
+    });
+
+    const response = await server.inject({
+      method: 'POST',
+      payload: {
+        agentDriver: 'copilot',
+        claudePath: '   ',
+        copilotPath: '',
+        exerciseLanguage: 'python',
+        guideTone: 'encouraging',
+        safeRunChecks: true,
+      },
+      url: setupUrl,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().claudePath).toBeNull();
+    expect(response.json().copilotPath).toBeNull();
+
+    await server.close();
+  });
+
+  it('checks the selected local CLI agent from setup settings', async () => {
+    const calls: Array<Parameters<CliProcessRunner>> = [];
+    const runner: CliProcessRunner = async (...input) => {
+      calls.push(input);
+      return { exitCode: 0, stderr: '', stdout: '{"status":"ok"}' };
+    };
+    const server = await buildServer({
+      agentProcessRunner: runner,
+      dbPath: ':memory:',
+      logger: false,
+      workspacePath,
+    });
+
+    await server.inject({
+      method: 'POST',
+      payload: {
+        agentDriver: 'claude',
+        claudePath,
+        exerciseLanguage: 'typescript',
+        guideTone: 'socratic',
+        safeRunChecks: true,
+      },
+      url: setupUrl,
+    });
+    const response = await server.inject({
+      method: 'GET',
+      url: '/api/agent/health',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      driver: 'claude',
+      health: { message: 'Claude CLI is authenticated.', ok: true },
+    });
+    expect(calls).toEqual([
+      [claudePath, ['auth', 'status'], { cwd: workspacePath, signal: expect.any(AbortSignal) }],
+    ]);
+
+    await server.close();
+  });
+
+  it('runs prompts through the selected local CLI agent and persists the session', async () => {
+    const calls: Array<Parameters<CliProcessRunner>> = [];
+    const runner: CliProcessRunner = async (...input) => {
+      calls.push(input);
+      return { exitCode: 0, stderr: '', stdout: 'Use two pointers.\n' };
+    };
+    const server = await buildServer({
+      agentProcessRunner: runner,
+      dbPath: ':memory:',
+      logger: false,
+      workspacePath,
+    });
+
+    await server.inject({
+      method: 'POST',
+      payload: {
+        agentDriver: 'copilot',
+        copilotPath,
+        exerciseLanguage: 'python',
+        guideTone: 'direct',
+        safeRunChecks: true,
+      },
+      url: setupUrl,
+    });
+    const response = await server.inject({
+      method: 'POST',
+      payload: {
+        prompt: 'How should I solve two sum?',
+      },
+      url: '/api/agent/run',
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({
+      driver: 'copilot',
+      result: { contentMd: 'Use two pointers.' },
+    });
+    expect(calls).toEqual([
+      [
+        copilotPath,
+        [
+          '-p',
+          'You are Code Sherpa, a direct DSA tutor. Explain concepts without executing commands or editing files.\n\nHow should I solve two sum?',
+          '--deny-tool=shell',
+          '--deny-tool=write',
+        ],
+        { cwd: workspacePath, signal: expect.any(AbortSignal) },
+      ],
+    ]);
 
     await server.close();
   });

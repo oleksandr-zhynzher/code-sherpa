@@ -16,6 +16,8 @@ const claudePath = '/opt/bin/claude';
 const copilotPath = '/opt/bin/copilot';
 const repoUrl = 'git@github.com:example/algorithms.git';
 const agentPlanTitle = 'Graphs and Dynamic Programming Path';
+const defaultGoal = 'graphs and dynamic programming in three weeks';
+const tempBaseDirPrefix = 'code-sherpa-base-';
 const agentPlanJson = JSON.stringify({
   title: agentPlanTitle,
   topics: [
@@ -77,7 +79,7 @@ describe('POC data API', () => {
 
     const createResponse = await server.inject({
       method: 'POST',
-      payload: { goal: 'graphs and dynamic programming in three weeks' },
+      payload: { goal: defaultGoal },
       url: plansUrl,
     });
 
@@ -288,7 +290,7 @@ describe('POC data API', () => {
   });
 
   it('links a local workspace folder and reports git repository status', async () => {
-    const workspaceBasePath = await mkdtemp(join(tmpdir(), 'code-sherpa-base-'));
+    const workspaceBasePath = await mkdtemp(join(tmpdir(), tempBaseDirPrefix));
     const linkedWorkspace = join(workspaceBasePath, 'linked-workspace');
     const server = await buildServer({
       dbPath: ':memory:',
@@ -357,7 +359,7 @@ describe('POC data API', () => {
   });
 
   it('rejects workspace folders outside the configured workspace base', async () => {
-    const workspaceBasePath = await mkdtemp(join(tmpdir(), 'code-sherpa-base-'));
+    const workspaceBasePath = await mkdtemp(join(tmpdir(), tempBaseDirPrefix));
     const outsideWorkspace = await mkdtemp(join(tmpdir(), 'code-sherpa-outside-workspace-'));
     const server = await buildServer({
       dbPath: ':memory:',
@@ -546,6 +548,118 @@ describe('POC data API', () => {
         },
       ],
     });
+
+    await server.close();
+  });
+});
+
+describe('code generation lifecycle', () => {
+  it('creates a generation record when scaffolding a task for the first time', async () => {
+    const workspaceBasePath = await mkdtemp(join(tmpdir(), tempBaseDirPrefix));
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+      workspaceBasePath,
+      workspacePath: join(workspaceBasePath, 'workspace'),
+    });
+
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+    const taskId = planResponse.json().topics[0].tasks[0].id;
+
+    const scaffoldResponse = await server.inject({
+      method: 'POST',
+      url: `/api/tasks/${taskId}/scaffold`,
+    });
+
+    expect(scaffoldResponse.statusCode).toBe(201);
+    const body = scaffoldResponse.json();
+    expect(body.generation).toMatchObject({
+      id: expect.stringContaining('gen-'),
+      taskId,
+      status: 'completed',
+      generatedPaths: [
+        expect.stringContaining('solution.py'),
+        expect.stringContaining('test_solution.py'),
+      ],
+    });
+
+    const generationResponse = await server.inject({
+      method: 'GET',
+      url: `/api/tasks/${taskId}/generation`,
+    });
+
+    expect(generationResponse.statusCode).toBe(200);
+    expect(generationResponse.json().generation).toMatchObject({
+      id: body.generation.id,
+      status: 'completed',
+    });
+
+    await server.close();
+    await rm(workspaceBasePath, { force: true, recursive: true });
+  });
+
+  it('creates a new generation record on repeat scaffold without overwriting files', async () => {
+    const workspaceBasePath = await mkdtemp(join(tmpdir(), tempBaseDirPrefix));
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+      workspaceBasePath,
+      workspacePath: join(workspaceBasePath, 'workspace'),
+    });
+
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+    const taskId = planResponse.json().topics[0].tasks[0].id;
+
+    await server.inject({ method: 'POST', url: `/api/tasks/${taskId}/scaffold` });
+    await server.inject({
+      method: 'PUT',
+      payload: { content: 'def solve(): return 42' },
+      url: `/api/tasks/${taskId}/solution`,
+    });
+
+    const reScaffoldResponse = await server.inject({
+      method: 'POST',
+      url: `/api/tasks/${taskId}/scaffold`,
+    });
+
+    expect(reScaffoldResponse.statusCode).toBe(201);
+    expect(reScaffoldResponse.json().files.solution).toBe('def solve(): return 42');
+
+    await server.close();
+    await rm(workspaceBasePath, { force: true, recursive: true });
+  });
+
+  it('returns null generation for a task that has not been scaffolded', async () => {
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+    });
+
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: defaultGoal },
+      url: plansUrl,
+    });
+    const taskId = planResponse.json().topics[0].tasks[0].id;
+
+    const generationResponse = await server.inject({
+      method: 'GET',
+      url: `/api/tasks/${taskId}/generation`,
+    });
+
+    expect(generationResponse.statusCode).toBe(200);
+    expect(generationResponse.json().generation).toBeNull();
 
     await server.close();
   });

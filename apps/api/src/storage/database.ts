@@ -6,6 +6,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { generatePlanTemplate } from '../domain/planner.js';
 import type {
   ChatMessage,
+  CodeGeneration,
+  CodeGenerationStatus,
   PlanDetail,
   PlanSummary,
   ProgressEvent,
@@ -88,6 +90,16 @@ type ProgressEventRow = Readonly<{
   scope_type: ProgressEvent['scopeType'];
 }>;
 
+type CodeGenerationRow = Readonly<{
+  created_at: string;
+  generated_paths_json: string;
+  id: string;
+  prompt: string;
+  status: CodeGenerationStatus;
+  task_id: string;
+  updated_at: string;
+}>;
+
 const selectTopicByIdSql = 'SELECT * FROM topic WHERE id = ?';
 const selectTaskByIdSql = 'SELECT * FROM task WHERE id = ?';
 
@@ -116,6 +128,14 @@ export type CodeSherpaDatabase = Readonly<{
   addChatMessage: (
     input: Readonly<{ contentMd: string; role: ChatMessage['role']; taskId: string }>,
   ) => ChatMessage;
+  createCodeGeneration: (
+    input: Readonly<{
+      generatedPaths: ReadonlyArray<string>;
+      prompt: string;
+      status: CodeGenerationStatus;
+      taskId: string;
+    }>,
+  ) => CodeGeneration;
   createVisualization: (
     input: Readonly<{
       kind: Visualization['kind'];
@@ -126,6 +146,7 @@ export type CodeSherpaDatabase = Readonly<{
   ) => Visualization;
   createPlan: (goal: string) => PlanDetail;
   createPlanFromDraft: (goal: string, draft: PlanDraft) => PlanDetail;
+  getLatestCodeGeneration: (taskId: string) => CodeGeneration | null;
   getPlan: (id: string) => PlanDetail;
   getResumeState: () => ResumeState;
   getSetup: (workspacePath: string) => SetupState;
@@ -248,6 +269,27 @@ function mapVisualization(row: VisualizationRow): Visualization {
     payload: row.payload,
     prompt: row.prompt,
     taskId: row.task_id,
+  };
+}
+
+function parseJsonArray(json: string): ReadonlyArray<string> {
+  try {
+    const parsed = JSON.parse(json) as unknown;
+    return Array.isArray(parsed) ? (parsed as ReadonlyArray<string>) : [];
+  } catch {
+    return [];
+  }
+}
+
+function mapCodeGeneration(row: CodeGenerationRow): CodeGeneration {
+  return {
+    createdAt: row.created_at,
+    generatedPaths: parseJsonArray(row.generated_paths_json),
+    id: row.id,
+    prompt: row.prompt,
+    status: row.status,
+    taskId: row.task_id,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -413,6 +455,31 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
     close: () => {
       db.close();
     },
+    createCodeGeneration: (input) => {
+      return runInTransaction(db, () => {
+        const id = `gen-${randomUUID()}`;
+        const now = nowIso();
+        const generatedPathsJson = JSON.stringify(input.generatedPaths);
+        db.prepare(
+          `INSERT INTO code_generation (id, task_id, prompt, generated_paths_json, status, agent_trace_json, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, '[]', ?, ?)`,
+        ).run(id, input.taskId, input.prompt, generatedPathsJson, input.status, now, now);
+        insertProgressEvent('code_generated', 'task', input.taskId, {
+          generatedPaths: input.generatedPaths,
+          status: input.status,
+        });
+
+        return {
+          createdAt: now,
+          generatedPaths: input.generatedPaths,
+          id,
+          prompt: input.prompt,
+          status: input.status,
+          taskId: input.taskId,
+          updatedAt: now,
+        };
+      });
+    },
     createVisualization: (input) => {
       return runInTransaction(db, () => {
         const id = `viz-${randomUUID()}`;
@@ -437,6 +504,15 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
       return insertPlanDraft(goal, template);
     },
     createPlanFromDraft: (goal, draft) => insertPlanDraft(goal, draft),
+    getLatestCodeGeneration: (taskId: string) => {
+      const row = db
+        .prepare(
+          'SELECT * FROM code_generation WHERE task_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1',
+        )
+        .get(taskId) as unknown as CodeGenerationRow | undefined;
+
+      return row === undefined ? null : mapCodeGeneration(row);
+    },
     getPlan: (id: string) => getPlanDetail(db, id),
     getResumeState: () => getResumeState(db),
     getSetup: setupRepository.getSetup,

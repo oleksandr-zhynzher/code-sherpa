@@ -276,11 +276,27 @@ export function registerRoutes(server: FastifyInstance): void {
       scaffold.solutionPath,
       scaffold.testPath,
     );
+    const generation = server.codeSherpa.db.createCodeGeneration({
+      generatedPaths: [scaffold.solutionPath, scaffold.testPath],
+      prompt: context.promptMd,
+      status: 'completed',
+      taskId: params.id,
+    });
 
     return reply.status(201).send({
       files: scaffold.files,
+      generation,
       task,
     });
+  });
+
+  server.get('/api/tasks/:id/generation', async (request) => {
+    const params = idParamsSchema.parse(request.params);
+    server.codeSherpa.db.getTask(params.id);
+
+    return {
+      generation: server.codeSherpa.db.getLatestCodeGeneration(params.id),
+    };
   });
 
   server.get('/api/tasks/:id/files', async (request) => {

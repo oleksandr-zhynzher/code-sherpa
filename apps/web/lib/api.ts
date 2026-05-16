@@ -1,5 +1,6 @@
 import type {
   ChatMessage,
+  CodeGeneration,
   LearningPathDetail,
   LearningPathSummary,
   PlanDetail,
@@ -76,6 +77,8 @@ export const api = {
       method: 'POST',
     }),
   getSetup: () => request<SetupState>('/api/setup'),
+  getTaskGeneration: (taskId: string) =>
+    request<Readonly<{ generation: CodeGeneration | null }>>(`/api/tasks/${taskId}/generation`),
   getWorkspaceStatus: () =>
     request<Readonly<{ repoUrl: string | null; status: WorkspaceStatus }>>('/api/repo/status'),
   getResume: () => request<ResumeState>('/api/resume'),
@@ -106,9 +109,12 @@ export const api = {
       method: 'PUT',
     }),
   scaffoldTask: (taskId: string) =>
-    request<Readonly<{ files: TaskFiles; task: Task }>>(`/api/tasks/${taskId}/scaffold`, {
-      method: 'POST',
-    }),
+    request<Readonly<{ files: TaskFiles; generation: CodeGeneration; task: Task }>>(
+      `/api/tasks/${taskId}/scaffold`,
+      {
+        method: 'POST',
+      },
+    ),
   showLearningPath: (pathId: string) => request<LearningPathDetail>(`/api/paths/${pathId}`),
   showPlan: (planId: string) => request<PlanDetail>(`/api/plans/${planId}`),
 };

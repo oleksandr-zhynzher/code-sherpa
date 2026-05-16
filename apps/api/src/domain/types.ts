@@ -89,3 +89,15 @@ export type Visualization = Readonly<{
   prompt: string;
   taskId: string;
 }>;
+
+export type CodeGenerationStatus = 'completed' | 'conflict' | 'failed' | 'pending';
+
+export type CodeGeneration = Readonly<{
+  createdAt: string;
+  generatedPaths: ReadonlyArray<string>;
+  id: string;
+  prompt: string;
+  status: CodeGenerationStatus;
+  taskId: string;
+  updatedAt: string;
+}>;

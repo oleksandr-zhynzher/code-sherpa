@@ -26,5 +26,24 @@ Read these in order:
 
 ## Quick status
 
-This repository currently contains **planning artifacts only** — no code yet.
-Stage 0 of the [roadmap](docs/03-roadmap.md) is the next concrete step.
+The POC is implemented as an NX monorepo:
+
+- `apps/api` — Fastify/Node.js backend with SQLite persistence, workspace file
+  scaffolding, local test execution, git commit support, and deterministic POC
+  agent flows.
+- `apps/web` — Next.js UI for setup, plan generation, task editing, test output,
+  chat, and visualizations.
+
+## Run locally
+
+```bash
+npm install
+npm run quality
+docker compose up --build
+```
+
+Then open `http://127.0.0.1:3000`. The API health endpoint is
+`http://127.0.0.1:8000/health`.
+
+The local workspace is mounted at `./workspace/`; generated task files and git
+commits are scoped to that directory.

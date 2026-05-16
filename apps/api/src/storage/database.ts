@@ -91,6 +91,25 @@ type ProgressEventRow = Readonly<{
 const selectTopicByIdSql = 'SELECT * FROM topic WHERE id = ?';
 const selectTaskByIdSql = 'SELECT * FROM task WHERE id = ?';
 
+export type PlanDraft = Readonly<{
+  title: string;
+  topics: ReadonlyArray<
+    Readonly<{
+      slug?: string | undefined;
+      tasks: ReadonlyArray<
+        Readonly<{
+          difficulty: Task['difficulty'];
+          language?: Task['language'] | undefined;
+          promptMd: string;
+          slug?: string | undefined;
+          title: string;
+        }>
+      >;
+      title: string;
+    }>
+  >;
+}>;
+
 export type CodeSherpaDatabase = Readonly<{
   agentSessions: AgentSessionRepository;
   close: () => void;
@@ -106,6 +125,7 @@ export type CodeSherpaDatabase = Readonly<{
     }>,
   ) => Visualization;
   createPlan: (goal: string) => PlanDetail;
+  createPlanFromDraft: (goal: string, draft: PlanDraft) => PlanDetail;
   getPlan: (id: string) => PlanDetail;
   getResumeState: () => ResumeState;
   getSetup: (workspacePath: string) => SetupState;
@@ -185,6 +205,29 @@ function mapTaskContext(row: TaskContextRow): TaskContext {
     ...mapTask(row),
     topicSlug: row.topic_slug,
   };
+}
+
+function slugify(input: string, fallback: string): string {
+  const slug = input
+    .trim()
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/gu, '-')
+    .replaceAll(/^-|-$/gu, '')
+    .slice(0, 80);
+
+  return slug.length === 0 ? fallback : slug;
+}
+
+function uniqueSlug(base: string, used: Set<string>): string {
+  let slug = base;
+  let suffix = 2;
+  while (used.has(slug)) {
+    slug = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  used.add(slug);
+
+  return slug;
 }
 
 function mapChatMessage(row: ChatMessageRow): ChatMessage {
@@ -303,6 +346,49 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
       scopeType,
     };
   };
+  const insertPlanDraft = (goal: string, draft: PlanDraft): PlanDetail => {
+    const createdAt = nowIso();
+    const planId = `plan-${randomUUID().slice(0, 12)}`;
+    const insertPlan = db.prepare(
+      'INSERT INTO plan (id, title, goal, created_at) VALUES (?, ?, ?, ?)',
+    );
+    const insertTopic = db.prepare(
+      'INSERT INTO topic (id, plan_id, position, slug, title, status, explanation_md) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    );
+    const insertTask = db.prepare(
+      `INSERT INTO task
+        (id, topic_id, position, slug, title, difficulty, prompt_md, language, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const topicSlugs = new Set<string>();
+
+    runInTransaction(db, () => {
+      insertPlan.run(planId, draft.title, goal, createdAt);
+      for (const [topicIndex, topic] of draft.topics.entries()) {
+        const topicSlug = uniqueSlug(slugify(topic.slug ?? topic.title, 'topic'), topicSlugs);
+        const topicId = `${planId}-topic-${topicIndex + 1}-${randomUUID().slice(0, 8)}`;
+        const taskSlugs = new Set<string>();
+        insertTopic.run(topicId, planId, topicIndex + 1, topicSlug, topic.title, 'todo', null);
+        for (const [taskIndex, task] of topic.tasks.entries()) {
+          const taskSlug = uniqueSlug(slugify(task.slug ?? task.title, 'task'), taskSlugs);
+          insertTask.run(
+            `${topicId}-task-${taskIndex + 1}-${randomUUID().slice(0, 8)}`,
+            topicId,
+            taskIndex + 1,
+            taskSlug,
+            task.title,
+            task.difficulty,
+            task.promptMd,
+            task.language ?? 'python',
+            'todo',
+          );
+        }
+      }
+      insertProgressEvent('path_created', 'path', planId, { goal, title: draft.title });
+    });
+
+    return getPlanDetail(db, planId);
+  };
 
   return {
     agentSessions,
@@ -347,52 +433,10 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
       });
     },
     createPlan: (goal: string) => {
-      const createdAt = nowIso();
       const template = generatePlanTemplate(goal);
-      const insertPlan = db.prepare(
-        'INSERT INTO plan (id, title, goal, created_at) VALUES (?, ?, ?, ?)',
-      );
-      const insertTopic = db.prepare(
-        'INSERT INTO topic (id, plan_id, position, slug, title, status, explanation_md) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      );
-      const insertTask = db.prepare(
-        `INSERT INTO task
-          (id, topic_id, position, slug, title, difficulty, prompt_md, language, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      );
-
-      runInTransaction(db, () => {
-        insertPlan.run(template.id, template.title, goal, createdAt);
-        for (const topic of template.topics) {
-          const topicId = `${template.id}-${topic.slug}`;
-          insertTopic.run(
-            topicId,
-            template.id,
-            topic.position,
-            topic.slug,
-            topic.title,
-            'todo',
-            null,
-          );
-          for (const task of topic.tasks) {
-            insertTask.run(
-              `${topicId}-${task.slug}`,
-              topicId,
-              task.position,
-              task.slug,
-              task.title,
-              task.difficulty,
-              task.promptMd,
-              task.language,
-              'todo',
-            );
-          }
-        }
-        insertProgressEvent('path_created', 'path', template.id, { goal, title: template.title });
-      });
-
-      return getPlanDetail(db, template.id);
+      return insertPlanDraft(goal, template);
     },
+    createPlanFromDraft: (goal, draft) => insertPlanDraft(goal, draft),
     getPlan: (id: string) => getPlanDetail(db, id),
     getResumeState: () => getResumeState(db),
     getSetup: setupRepository.getSetup,

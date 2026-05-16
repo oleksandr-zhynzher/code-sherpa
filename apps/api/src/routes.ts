@@ -1,11 +1,15 @@
 import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 
+import {
+  answerTaskChatWithAgent,
+  createTrustedAgentSystemPrompt,
+  generateLearningPathDraftWithAgent,
+  generateTopicExplanationWithAgent,
+} from './agent/app-flows.js';
 import { createAppAgentToolRegistry } from './agent/app-tools.js';
 import { createAgentDriverForSetup } from './agent/cli-driver.js';
-import { answerTaskQuestion, explainTopic } from './agent/poc-agent.js';
 import { createAgentSessionService } from './agent/session-service.js';
-import type { SetupState } from './domain/types.js';
 import {
   agentRunRequestSchema,
   chatRequestSchema,
@@ -47,10 +51,6 @@ function createConfiguredAgentService(server: FastifyInstance) {
     }),
     setup,
   };
-}
-
-function createTrustedAgentSystemPrompt(setup: SetupState): string {
-  return `You are Code Sherpa, a ${setup.guideTone} DSA tutor. Explain concepts without executing commands or editing files.`;
 }
 
 export function registerRoutes(server: FastifyInstance): void {
@@ -135,7 +135,13 @@ export function registerRoutes(server: FastifyInstance): void {
 
   server.post('/api/plans', async (request, reply) => {
     const input = createLearningPathSchema.parse(request.body);
-    const plan = server.codeSherpa.db.createPlan(input.goal);
+    const agent = createConfiguredAgentService(server);
+    const draft = await generateLearningPathDraftWithAgent({
+      goal: input.goal,
+      service: agent.service,
+      setup: agent.setup,
+    });
+    const plan = server.codeSherpa.db.createPlanFromDraft(input.goal, draft);
 
     return reply.status(201).send(plan);
   });
@@ -151,7 +157,13 @@ export function registerRoutes(server: FastifyInstance): void {
 
   server.post('/api/paths', async (request, reply) => {
     const input = createLearningPathSchema.parse(request.body);
-    const path = server.codeSherpa.db.createPlan(input.goal);
+    const agent = createConfiguredAgentService(server);
+    const draft = await generateLearningPathDraftWithAgent({
+      goal: input.goal,
+      service: agent.service,
+      setup: agent.setup,
+    });
+    const path = server.codeSherpa.db.createPlanFromDraft(input.goal, draft);
 
     return reply.status(201).send(path);
   });
@@ -174,8 +186,14 @@ export function registerRoutes(server: FastifyInstance): void {
   server.post('/api/topics/:id/explain', async (request) => {
     const params = idParamsSchema.parse(request.params);
     const topic = server.codeSherpa.db.getTopic(params.id);
+    const agent = createConfiguredAgentService(server);
+    const explanation = await generateTopicExplanationWithAgent({
+      service: agent.service,
+      setup: agent.setup,
+      topic,
+    });
 
-    return server.codeSherpa.db.updateTopicExplanation(params.id, explainTopic(topic));
+    return server.codeSherpa.db.updateTopicExplanation(params.id, explanation);
   });
 
   server.post('/api/tasks/:id/scaffold', async (request, reply) => {
@@ -259,7 +277,13 @@ export function registerRoutes(server: FastifyInstance): void {
       role: 'user',
       taskId: params.id,
     });
-    const answer = answerTaskQuestion(task, input.message);
+    const agent = createConfiguredAgentService(server);
+    const answer = await answerTaskChatWithAgent({
+      message: input.message,
+      service: agent.service,
+      setup: agent.setup,
+      task,
+    });
     const assistantMessage = server.codeSherpa.db.addChatMessage({
       contentMd: answer.responseMd,
       role: 'assistant',

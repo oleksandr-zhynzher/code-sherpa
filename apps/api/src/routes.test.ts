@@ -5,13 +5,65 @@ import { buildServer } from './server.js';
 
 const plansUrl = '/api/plans';
 const setupUrl = '/api/setup';
+const agentRunUrl = '/api/agent/run';
 const workspacePath = '/tmp/code-sherpa-workspace';
 const claudePath = '/opt/bin/claude';
 const copilotPath = '/opt/bin/copilot';
+const agentPlanTitle = 'Graphs and Dynamic Programming Path';
+const agentPlanJson = JSON.stringify({
+  title: agentPlanTitle,
+  topics: [
+    {
+      tasks: [
+        {
+          difficulty: 'easy',
+          language: 'python',
+          promptMd: 'Implement two pointer palindrome validation.',
+          title: 'Valid Palindrome',
+        },
+      ],
+      title: 'Arrays & Two Pointers',
+    },
+    {
+      tasks: [
+        {
+          difficulty: 'medium',
+          language: 'python',
+          promptMd: 'Implement BFS shortest path.',
+          title: 'BFS Shortest Path',
+        },
+      ],
+      title: 'Graph Foundations',
+    },
+  ],
+});
+const longSlug = 'a'.repeat(80);
+const longAgentPlanJson = JSON.stringify({
+  title: 'A'.repeat(120),
+  topics: [
+    {
+      slug: longSlug,
+      tasks: [
+        {
+          difficulty: 'medium',
+          language: 'python',
+          promptMd: 'Implement a bounded id regression exercise.',
+          slug: longSlug,
+          title: 'T'.repeat(120),
+        },
+      ],
+      title: 'B'.repeat(120),
+    },
+  ],
+});
 
 describe('POC data API', () => {
   it('creates and returns a learning plan with topics and tasks', async () => {
-    const server = await buildServer({ dbPath: ':memory:', logger: false });
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+    });
 
     const createResponse = await server.inject({
       method: 'POST',
@@ -21,8 +73,8 @@ describe('POC data API', () => {
 
     expect(createResponse.statusCode).toBe(201);
     const plan = createResponse.json();
-    expect(plan.title).toContain('graphs and dynamic programming');
-    expect(plan.topics).toHaveLength(3);
+    expect(plan.title).toBe(agentPlanTitle);
+    expect(plan.topics).toHaveLength(2);
     expect(plan.topics[0].tasks.length).toBeGreaterThan(0);
 
     const listResponse = await server.inject({
@@ -52,7 +104,11 @@ describe('POC data API', () => {
   });
 
   it('exposes learning path aliases for the production contract', async () => {
-    const server = await buildServer({ dbPath: ':memory:', logger: false });
+    const server = await buildServer({
+      agentProcessRunner: async () => ({ exitCode: 0, stderr: '', stdout: agentPlanJson }),
+      dbPath: ':memory:',
+      logger: false,
+    });
 
     const createResponse = await server.inject({
       method: 'POST',
@@ -62,7 +118,7 @@ describe('POC data API', () => {
 
     expect(createResponse.statusCode).toBe(201);
     const path = createResponse.json();
-    expect(path.title).toContain('hash maps for interviews');
+    expect(path.title).toBe(agentPlanTitle);
 
     const listResponse = await server.inject({
       method: 'GET',
@@ -92,6 +148,52 @@ describe('POC data API', () => {
     });
     expect(progressResponse.statusCode).toBe(200);
     expect(progressResponse.json().data).toHaveLength(1);
+
+    await server.close();
+  });
+
+  it('keeps agent-generated IDs within route and tool validation limits', async () => {
+    let taskId = '';
+    let promptCount = 0;
+    const server = await buildServer({
+      agentProcessRunner: async () => {
+        promptCount += 1;
+        return {
+          exitCode: 0,
+          stderr: '',
+          stdout:
+            promptCount === 1
+              ? longAgentPlanJson
+              : promptCount === 2
+                ? `CS_TOOL_CALL: {"name":"get_task_context","arguments":{"taskId":"${taskId}"}}\n`
+                : 'Context loaded.',
+        };
+      },
+      dbPath: ':memory:',
+      logger: false,
+    });
+
+    const createResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: 'very long generated slugs' },
+      url: plansUrl,
+    });
+    taskId = createResponse.json().topics[0].tasks[0].id;
+
+    expect(taskId.length).toBeLessThanOrEqual(200);
+    const taskResponse = await server.inject({
+      method: 'GET',
+      url: `/api/tasks/${taskId}`,
+    });
+    expect(taskResponse.statusCode).toBe(200);
+
+    const agentResponse = await server.inject({
+      method: 'POST',
+      payload: { prompt: 'Use the long task id.' },
+      url: agentRunUrl,
+    });
+    expect(agentResponse.statusCode).toBe(201);
+    expect(agentResponse.json().result.toolResults[0].resultJson).toContain(taskId);
 
     await server.close();
   });
@@ -231,7 +333,7 @@ describe('POC data API', () => {
       payload: {
         prompt: 'How should I solve two sum?',
       },
-      url: '/api/agent/run',
+      url: agentRunUrl,
     });
 
     expect(response.statusCode).toBe(201);
@@ -269,8 +371,10 @@ describe('POC data API', () => {
         stderr: '',
         stdout:
           promptCount === 1
-            ? `Need context.\nCS_TOOL_CALL: {"name":"get_task_context","arguments":{"taskId":"${taskId}"}}\n`
-            : 'Use a hash map.',
+            ? agentPlanJson
+            : promptCount === 2
+              ? `Need context.\nCS_TOOL_CALL: {"name":"get_task_context","arguments":{"taskId":"${taskId}"}}\n`
+              : 'Use a hash map.',
       };
     };
     const server = await buildServer({
@@ -303,7 +407,7 @@ describe('POC data API', () => {
       payload: {
         prompt: 'Use app context.',
       },
-      url: '/api/agent/run',
+      url: agentRunUrl,
     });
 
     expect(response.statusCode).toBe(201);

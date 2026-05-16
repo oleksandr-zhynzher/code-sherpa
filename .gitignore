@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.nx/
+.next/
+coverage/
+
+.env
+.env.*
+!.env.example
+
+workspace/
+.code-sherpa/
+*.db
+
+.DS_Store
+npm-debug.log*

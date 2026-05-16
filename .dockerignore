@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.nx/
+.next/
+apps/web/.next/
+coverage/
+.git/
+workspace/
+.code-sherpa/
+.env
+.env.*
+npm-debug.log*

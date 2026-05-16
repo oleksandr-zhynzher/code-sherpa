@@ -1,0 +1,24 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8000
+    ports:
+      - '127.0.0.1:8000:8000'
+    volumes:
+      - ./workspace:/app/workspace
+      - ./.code-sherpa:/app/.code-sherpa
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      NEXT_TELEMETRY_DISABLED: '1'
+    ports:
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      - api

@@ -10,7 +10,11 @@ describe('app routes', () => {
     const markup = renderToStaticMarkup(<HomePage />);
 
     expect(markup).toContain('Your guide to mastering problem-solving');
-    expect(markup).toContain('href="/setup"');
+    expect(markup).toContain('Built for learners who want to grow');
+    expect(markup).toContain('Four steps to the summit');
+    expect(markup).toContain('A guide, not a judge');
+    expect(markup).toContain('/images/generated-1778944760160.png');
+    expect(markup).toContain('/images/generated-1778948563108.png');
     expect(markup).toContain('href="/learn"');
   });
 

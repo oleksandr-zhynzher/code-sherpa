@@ -13,6 +13,11 @@ import type {
   PlanDetail,
   PlanSummary,
   ProgressEvent,
+  Quiz,
+  QuizAnswer,
+  QuizAttempt,
+  QuizAttemptStatus,
+  QuizQuestion,
   ResumeState,
   SetupState,
   Task,
@@ -133,6 +138,44 @@ type TestRunRow = Readonly<{
   task_id: string;
 }>;
 
+type QuizRow = Readonly<{
+  id: string;
+  topic_id: string;
+  title: string;
+  created_at: string;
+}>;
+
+type QuizQuestionRow = Readonly<{
+  id: string;
+  quiz_id: string;
+  position: number;
+  type: QuizQuestion['type'];
+  prompt: string;
+  choices_json: string;
+  correct_answer: string | null;
+  explanation: string;
+}>;
+
+type QuizAttemptRow = Readonly<{
+  id: string;
+  quiz_id: string;
+  status: QuizAttemptStatus;
+  started_at: string;
+  completed_at: string | null;
+  score: number | null;
+  total: number | null;
+  duration_ms: number | null;
+}>;
+
+type QuizAnswerRow = Readonly<{
+  id: string;
+  attempt_id: string;
+  question_id: string;
+  answer: string;
+  is_correct: number | null;
+  feedback: string | null;
+}>;
+
 const selectTopicByIdSql = 'SELECT * FROM topic WHERE id = ?';
 const selectTaskByIdSql = 'SELECT * FROM task WHERE id = ?';
 
@@ -224,6 +267,20 @@ export type CodeSherpaDatabase = Readonly<{
   ) => SetupState;
   updateTaskFiles: (id: string, solutionPath: string, testPath: string) => Task;
   updateTopicExplanation: (id: string, explanationMd: string) => Topic;
+  createQuiz: (
+    input: Readonly<{
+      topicId: string;
+      title: string;
+      questions: ReadonlyArray<Omit<QuizQuestion, 'id' | 'quizId'>>;
+    }>,
+  ) => Quiz;
+  getQuiz: (id: string) => Quiz;
+  startQuizAttempt: (quizId: string) => QuizAttempt;
+  getQuizAttempt: (id: string) => QuizAttempt;
+  saveQuizAnswer: (
+    input: Readonly<{ attemptId: string; questionId: string; selectedAnswer: string }>,
+  ) => QuizAnswer;
+  completeQuizAttempt: (id: string) => QuizAttempt;
 }>;
 
 function nowIso(): string {
@@ -356,6 +413,45 @@ function mapTestRun(row: TestRunRow): TestRun {
   };
 }
 
+function mapQuizQuestion(row: QuizQuestionRow): QuizQuestion {
+  const choices = parseJsonArray(row.choices_json);
+  return {
+    id: row.id,
+    quizId: row.quiz_id,
+    position: row.position,
+    type: row.type,
+    promptMd: row.prompt,
+    choices: choices.length > 0 ? choices : null,
+    correctAnswer: row.correct_answer ?? '',
+    explanation: row.explanation,
+  };
+}
+
+function mapQuizAnswer(row: QuizAnswerRow): QuizAnswer {
+  return {
+    id: row.id,
+    attemptId: row.attempt_id,
+    questionId: row.question_id,
+    selectedAnswer: row.answer,
+    isCorrect: row.is_correct === 1,
+    feedback: row.feedback,
+  };
+}
+
+function mapQuizAttempt(row: QuizAttemptRow, answers: ReadonlyArray<QuizAnswer>): QuizAttempt {
+  return {
+    id: row.id,
+    quizId: row.quiz_id,
+    status: row.status,
+    score: row.score,
+    totalQuestions: row.total,
+    durationMs: row.duration_ms,
+    startedAt: row.started_at,
+    completedAt: row.completed_at,
+    answers,
+  };
+}
+
 function mapChatThread(row: ChatThreadRow): ChatThread {
   return {
     createdAt: row.created_at,
@@ -437,6 +533,8 @@ function getPlanSummary(db: DatabaseSync, id: string): PlanSummary {
 
   return plan;
 }
+
+const selectQuizAttemptById = 'SELECT * FROM quiz_attempt WHERE id = ?';
 
 export function createDatabase(dbPath: string): CodeSherpaDatabase {
   if (dbPath !== ':memory:') {
@@ -834,6 +932,214 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
       }
 
       return mapTopic(row);
+    },
+    createQuiz: (input) => {
+      return runInTransaction(db, () => {
+        const quizId = `quiz-${randomUUID()}`;
+        const createdAt = nowIso();
+        db.prepare(
+          'INSERT INTO quiz (id, topic_id, title, generated_metadata_json, created_at) VALUES (?, ?, ?, ?, ?)',
+        ).run(quizId, input.topicId, input.title, '{}', createdAt);
+
+        const insertQuestion = db.prepare(
+          'INSERT INTO quiz_question (id, quiz_id, position, type, prompt, choices_json, correct_answer, explanation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        );
+        const questions: QuizQuestion[] = [];
+        for (const q of input.questions) {
+          const questionId = `qq-${randomUUID()}`;
+          const choicesJson = JSON.stringify(q.choices ?? []);
+          insertQuestion.run(
+            questionId,
+            quizId,
+            q.position,
+            q.type,
+            q.promptMd,
+            choicesJson,
+            q.correctAnswer,
+            q.explanation,
+          );
+          questions.push({
+            id: questionId,
+            quizId,
+            position: q.position,
+            type: q.type,
+            promptMd: q.promptMd,
+            choices: q.choices,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation,
+          });
+        }
+
+        insertProgressEvent('quiz_created', 'quiz', quizId, { topicId: input.topicId });
+
+        return {
+          id: quizId,
+          topicId: input.topicId,
+          title: input.title,
+          createdAt,
+          questions,
+        };
+      });
+    },
+    getQuiz: (id: string) => {
+      const quizRow = db.prepare('SELECT * FROM quiz WHERE id = ?').get(id) as unknown as
+        | QuizRow
+        | undefined;
+      if (quizRow === undefined) {
+        throw new NotFoundError(`Quiz ${id} was not found`);
+      }
+
+      const questionRows = db
+        .prepare('SELECT * FROM quiz_question WHERE quiz_id = ? ORDER BY position ASC')
+        .all(id) as unknown as ReadonlyArray<QuizQuestionRow>;
+
+      return {
+        id: quizRow.id,
+        topicId: quizRow.topic_id,
+        title: quizRow.title,
+        createdAt: quizRow.created_at,
+        questions: questionRows.map(mapQuizQuestion),
+      };
+    },
+    startQuizAttempt: (quizId: string) => {
+      const quizRow = db.prepare('SELECT * FROM quiz WHERE id = ?').get(quizId) as unknown as
+        | QuizRow
+        | undefined;
+      if (quizRow === undefined) {
+        throw new NotFoundError(`Quiz ${quizId} was not found`);
+      }
+
+      return runInTransaction(db, () => {
+        const attemptId = `attempt-${randomUUID()}`;
+        const startedAt = nowIso();
+        db.prepare(
+          'INSERT INTO quiz_attempt (id, quiz_id, status, started_at) VALUES (?, ?, ?, ?)',
+        ).run(attemptId, quizId, 'in_progress', startedAt);
+        insertProgressEvent('quiz_started', 'quiz', quizId, { attemptId });
+
+        return {
+          id: attemptId,
+          quizId,
+          status: 'in_progress' as const,
+          score: null,
+          totalQuestions: null,
+          durationMs: null,
+          startedAt,
+          completedAt: null,
+          answers: [],
+        };
+      });
+    },
+    getQuizAttempt: (id: string) => {
+      const row = db.prepare(selectQuizAttemptById).get(id) as unknown as
+        | QuizAttemptRow
+        | undefined;
+      if (row === undefined) {
+        throw new NotFoundError(`Quiz attempt ${id} was not found`);
+      }
+
+      const answerRows = db
+        .prepare('SELECT * FROM quiz_answer WHERE attempt_id = ? ORDER BY rowid ASC')
+        .all(id) as unknown as ReadonlyArray<QuizAnswerRow>;
+
+      return mapQuizAttempt(row, answerRows.map(mapQuizAnswer));
+    },
+    saveQuizAnswer: (input) => {
+      const attemptRow = db.prepare(selectQuizAttemptById).get(input.attemptId) as unknown as
+        | QuizAttemptRow
+        | undefined;
+      if (attemptRow === undefined) {
+        throw new NotFoundError(`Quiz attempt ${input.attemptId} was not found`);
+      }
+
+      const questionRow = db
+        .prepare('SELECT * FROM quiz_question WHERE id = ?')
+        .get(input.questionId) as unknown as QuizQuestionRow | undefined;
+      if (questionRow === undefined) {
+        throw new NotFoundError(`Quiz question ${input.questionId} was not found`);
+      }
+
+      return runInTransaction(db, () => {
+        const answerId = `qa-${randomUUID()}`;
+        const updatedAt = nowIso();
+        db.prepare(
+          `INSERT INTO quiz_answer (id, attempt_id, question_id, answer, is_correct, feedback, updated_at)
+           VALUES (?, ?, ?, ?, NULL, NULL, ?)
+           ON CONFLICT(attempt_id, question_id) DO UPDATE SET answer = excluded.answer, updated_at = excluded.updated_at`,
+        ).run(answerId, input.attemptId, input.questionId, input.selectedAnswer, updatedAt);
+
+        const saved = db
+          .prepare('SELECT * FROM quiz_answer WHERE attempt_id = ? AND question_id = ?')
+          .get(input.attemptId, input.questionId) as unknown as QuizAnswerRow;
+
+        return mapQuizAnswer(saved);
+      });
+    },
+    completeQuizAttempt: (id: string) => {
+      const attemptRow = db.prepare(selectQuizAttemptById).get(id) as unknown as
+        | QuizAttemptRow
+        | undefined;
+      if (attemptRow === undefined) {
+        throw new NotFoundError(`Quiz attempt ${id} was not found`);
+      }
+
+      return runInTransaction(db, () => {
+        const now = nowIso();
+        const answerRows = db
+          .prepare('SELECT * FROM quiz_answer WHERE attempt_id = ?')
+          .all(id) as unknown as ReadonlyArray<QuizAnswerRow>;
+
+        let correctCount = 0;
+        const updatedAnswers: QuizAnswer[] = [];
+
+        for (const answer of answerRows) {
+          const qRow = db
+            .prepare('SELECT * FROM quiz_question WHERE id = ?')
+            .get(answer.question_id) as unknown as QuizQuestionRow | undefined;
+
+          if (qRow === undefined) {
+            continue;
+          }
+
+          const isCorrect =
+            qRow.correct_answer !== null &&
+            qRow.correct_answer.trim().toLowerCase() === answer.answer.trim().toLowerCase();
+
+          db.prepare('UPDATE quiz_answer SET is_correct = ? WHERE id = ?').run(
+            isCorrect ? 1 : 0,
+            answer.id,
+          );
+
+          if (isCorrect) {
+            correctCount += 1;
+          }
+
+          updatedAnswers.push({
+            id: answer.id,
+            attemptId: answer.attempt_id,
+            questionId: answer.question_id,
+            selectedAnswer: answer.answer,
+            isCorrect,
+            feedback: answer.feedback,
+          });
+        }
+
+        const total = answerRows.length;
+        const durationMs = Date.now() - new Date(attemptRow.started_at).getTime();
+
+        db.prepare(
+          'UPDATE quiz_attempt SET status = ?, completed_at = ?, score = ?, total = ?, duration_ms = ? WHERE id = ?',
+        ).run('completed', now, correctCount, total, durationMs, id);
+
+        insertProgressEvent('quiz_completed', 'quiz', attemptRow.quiz_id, {
+          score: correctCount,
+          total,
+        });
+
+        const updatedRow = db.prepare(selectQuizAttemptById).get(id) as unknown as QuizAttemptRow;
+
+        return mapQuizAttempt(updatedRow, updatedAnswers);
+      });
     },
   };
 }

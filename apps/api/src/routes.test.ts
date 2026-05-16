@@ -1143,3 +1143,174 @@ describe('observability', () => {
     await server.close();
   });
 });
+
+const correctAnswer = 'Breadth first';
+
+const agentQuizJson = JSON.stringify([
+  {
+    position: 1,
+    type: 'multiple_choice',
+    promptMd: 'What is BFS?',
+    choices: ['Depth first', correctAnswer, 'Binary first'],
+    correctAnswer,
+    explanation: 'BFS explores all neighbors at each level.',
+  },
+]);
+
+function buildQuizServer() {
+  let promptCount = 0;
+  return buildServer({
+    agentProcessRunner: async () => {
+      promptCount += 1;
+      return {
+        exitCode: 0,
+        stderr: '',
+        stdout: promptCount === 1 ? agentPlanJson : agentQuizJson,
+      };
+    },
+    dbPath: ':memory:',
+    logger: false,
+    workspacePath,
+  });
+}
+
+async function setupAndCreatePlan(server: Awaited<ReturnType<typeof buildServer>>) {
+  await server.inject({
+    method: 'POST',
+    payload: {
+      agentDriver: 'copilot',
+      copilotPath,
+      exerciseLanguage: 'python',
+      guideTone: 'direct',
+      safeRunChecks: true,
+    },
+    url: setupUrl,
+  });
+  return server.inject({
+    method: 'POST',
+    payload: { goal: defaultGoal },
+    url: plansUrl,
+  });
+}
+
+describe('quiz lifecycle', () => {
+  it('generates a quiz from a topic via the agent', async () => {
+    const server = await buildQuizServer();
+    const planResponse = await setupAndCreatePlan(server);
+    const topicId = planResponse.json().topics[0].id;
+
+    const quizResponse = await server.inject({
+      method: 'POST',
+      url: `/api/topics/${topicId}/quiz`,
+    });
+
+    expect(quizResponse.statusCode).toBe(201);
+    const quiz = quizResponse.json();
+    expect(quiz.id).toMatch(/^quiz-/);
+    expect(quiz.topicId).toBe(topicId);
+    expect(quiz.questions).toHaveLength(1);
+    expect(quiz.questions[0].promptMd).toBe('What is BFS?');
+    expect(quiz.questions[0].choices).toHaveLength(3);
+
+    await server.close();
+  });
+
+  it('runs the full lifecycle: start attempt → save answer → complete → score', async () => {
+    const server = await buildQuizServer();
+    const planResponse = await setupAndCreatePlan(server);
+    const topicId = planResponse.json().topics[0].id;
+
+    const quizResponse = await server.inject({
+      method: 'POST',
+      url: `/api/topics/${topicId}/quiz`,
+    });
+    expect(quizResponse.statusCode).toBe(201);
+    const quiz = quizResponse.json();
+    const quizId: string = quiz.id;
+    const questionId: string = quiz.questions[0].id;
+
+    const getQuizResponse = await server.inject({ method: 'GET', url: `/api/quizzes/${quizId}` });
+    expect(getQuizResponse.statusCode).toBe(200);
+    expect(getQuizResponse.json().id).toBe(quizId);
+
+    const attemptResponse = await server.inject({
+      method: 'POST',
+      url: `/api/quizzes/${quizId}/attempts`,
+    });
+    expect(attemptResponse.statusCode).toBe(201);
+    const attempt = attemptResponse.json();
+    expect(attempt.status).toBe('in_progress');
+    const attemptId: string = attempt.id;
+
+    const answerResponse = await server.inject({
+      method: 'PUT',
+      payload: { selectedAnswer: correctAnswer },
+      url: `/api/quiz-attempts/${attemptId}/answers/${questionId}`,
+    });
+    expect(answerResponse.statusCode).toBe(200);
+    expect(answerResponse.json().selectedAnswer).toBe(correctAnswer);
+
+    const completeResponse = await server.inject({
+      method: 'POST',
+      url: `/api/quiz-attempts/${attemptId}/complete`,
+    });
+    expect(completeResponse.statusCode).toBe(200);
+    const completed = completeResponse.json();
+    expect(completed.status).toBe('completed');
+    expect(completed.score).toBe(1);
+    expect(completed.totalQuestions).toBe(1);
+    expect(completed.answers[0].isCorrect).toBe(true);
+
+    const getAttemptResponse = await server.inject({
+      method: 'GET',
+      url: `/api/quiz-attempts/${attemptId}`,
+    });
+    expect(getAttemptResponse.statusCode).toBe(200);
+    expect(getAttemptResponse.json().status).toBe('completed');
+
+    await server.close();
+  });
+
+  it('returns 404 for a quiz attempt that does not exist', async () => {
+    const server = await buildServer({ dbPath: ':memory:', logger: false });
+
+    const response = await server.inject({
+      method: 'GET',
+      url: '/api/quiz-attempts/nonexistent',
+    });
+
+    expect(response.statusCode).toBe(404);
+
+    await server.close();
+  });
+
+  it('rejects an answer with an empty selectedAnswer', async () => {
+    const server = await buildQuizServer();
+    const planResponse = await setupAndCreatePlan(server);
+    const topicId = planResponse.json().topics[0].id;
+
+    const quizResponse = await server.inject({
+      method: 'POST',
+      url: `/api/topics/${topicId}/quiz`,
+    });
+    const quiz = quizResponse.json();
+    const quizId: string = quiz.id;
+    const questionId: string = quiz.questions[0].id;
+
+    const attemptResponse = await server.inject({
+      method: 'POST',
+      url: `/api/quizzes/${quizId}/attempts`,
+    });
+    const attemptId: string = attemptResponse.json().id;
+
+    const response = await server.inject({
+      method: 'PUT',
+      payload: { selectedAnswer: '' },
+      url: `/api/quiz-attempts/${attemptId}/answers/${questionId}`,
+    });
+
+    expect(response.statusCode).toBe(422);
+
+    await server.close();
+  });
+});

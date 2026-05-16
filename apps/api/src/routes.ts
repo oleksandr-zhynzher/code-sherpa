@@ -5,6 +5,7 @@ import {
   answerTaskChatWithAgent,
   createTrustedAgentSystemPrompt,
   generateLearningPathDraftWithAgent,
+  generateQuizWithAgent,
   generateTopicExplanationWithAgent,
 } from './agent/app-flows.js';
 import { createAppAgentToolRegistry } from './agent/app-tools.js';
@@ -20,6 +21,8 @@ import {
   guideActionSchema,
   idParamsSchema,
   progressListQuerySchema,
+  quizAnswerParamsSchema,
+  quizAnswerSchema,
   repoLinkSchema,
   setupSchema,
   solutionUpdateSchema,
@@ -524,5 +527,54 @@ export function registerRoutes(server: FastifyInstance): void {
     const params = idParamsSchema.parse(request.params);
 
     return { visualizations: server.codeSherpa.db.listVisualizations(params.id) };
+  });
+
+  server.post('/api/topics/:id/quiz', async (request, reply) => {
+    const params = idParamsSchema.parse(request.params);
+    const topic = server.codeSherpa.db.getTopic(params.id);
+    const agent = await createConfiguredAgentService(server);
+    const questions = await generateQuizWithAgent({
+      service: agent.service,
+      setup: agent.setup,
+      topic,
+    });
+    const quiz = server.codeSherpa.db.createQuiz({
+      questions,
+      title: `Quiz: ${topic.title}`,
+      topicId: params.id,
+    });
+
+    return reply.status(201).send(quiz);
+  });
+
+  server.get('/api/quizzes/:id', async (request) => {
+    const params = idParamsSchema.parse(request.params);
+    return server.codeSherpa.db.getQuiz(params.id);
+  });
+
+  server.post('/api/quizzes/:id/attempts', async (request, reply) => {
+    const params = idParamsSchema.parse(request.params);
+    const attempt = server.codeSherpa.db.startQuizAttempt(params.id);
+    return reply.status(201).send(attempt);
+  });
+
+  server.put('/api/quiz-attempts/:id/answers/:questionId', async (request) => {
+    const params = quizAnswerParamsSchema.parse(request.params);
+    const input = quizAnswerSchema.parse(request.body);
+    return server.codeSherpa.db.saveQuizAnswer({
+      attemptId: params.id,
+      questionId: params.questionId,
+      selectedAnswer: input.selectedAnswer,
+    });
+  });
+
+  server.post('/api/quiz-attempts/:id/complete', async (request) => {
+    const params = idParamsSchema.parse(request.params);
+    return server.codeSherpa.db.completeQuizAttempt(params.id);
+  });
+
+  server.get('/api/quiz-attempts/:id', async (request) => {
+    const params = idParamsSchema.parse(request.params);
+    return server.codeSherpa.db.getQuizAttempt(params.id);
   });
 }

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { SetupState, Task, Topic, Visualization } from '../domain/types.js';
+import type { QuizQuestion, SetupState, Task, Topic, Visualization } from '../domain/types.js';
 import type { PlanDraft } from '../storage/database.js';
 import type { AgentSessionService } from './session-service.js';
 
@@ -46,6 +46,22 @@ const agentChatResponseSchema = z
       .optional(),
   })
   .strict();
+
+const agentQuizQuestionSchema = z
+  .object({
+    position: z.number().int().min(1),
+    type: z.enum(['multiple_choice', 'short_answer']),
+    promptMd: z.string().trim().min(1).max(4_000),
+    choices: z
+      .array(z.string())
+      .nullish()
+      .transform((v) => v ?? null),
+    correctAnswer: z.string().trim().min(1).max(2_000),
+    explanation: z.string().trim().min(1).max(4_000),
+  })
+  .strict();
+
+const agentQuizQuestionsSchema = z.array(agentQuizQuestionSchema).min(1).max(20);
 
 export function createTrustedAgentSystemPrompt(setup: SetupState): string {
   return `You are Code Sherpa, a ${setup.guideTone} DSA tutor. Explain concepts without executing commands or editing files.`;
@@ -171,4 +187,25 @@ Omit visualization unless it directly helps the answer. Do not provide a full so
           taskId: task.id,
         },
       };
+}
+
+export async function generateQuizWithAgent({
+  service,
+  setup,
+  topic,
+}: AgentFlowOptions & Readonly<{ topic: Topic }>): Promise<
+  ReadonlyArray<Omit<QuizQuestion, 'id' | 'quizId'>>
+> {
+  const result = await service.run(
+    {
+      prompt: `Create a quiz for the topic "${topic.title}".
+
+Return only a JSON array of questions in this shape:
+[{"position":1,"type":"multiple_choice|short_answer","promptMd":"question text","choices":["option1","option2"] or null,"correctAnswer":"the correct answer","explanation":"why this is correct"}]`,
+      systemPrompt: createTrustedAgentSystemPrompt(setup),
+    },
+    { timeoutMs: 120_000 },
+  );
+
+  return parseAgentJson(result.contentMd, agentQuizQuestionsSchema, 'quiz generation');
 }

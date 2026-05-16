@@ -100,6 +100,15 @@ export const createVisualizationSchema = z.object({
   taskId: z.string().trim().min(1).max(200),
 });
 
+export const quizAnswerSchema = z.object({
+  selectedAnswer: z.string().trim().min(1).max(2_000),
+});
+
+export const quizAnswerParamsSchema = z.object({
+  id: z.string().trim().min(1).max(200),
+  questionId: z.string().trim().min(1).max(200),
+});
+
 export type CreatePlanInput = z.infer<typeof createPlanSchema>;
 export type CreateLearningPathInput = z.infer<typeof createLearningPathSchema>;
 export type SetupInput = z.infer<typeof setupSchema>;

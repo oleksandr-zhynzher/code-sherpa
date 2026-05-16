@@ -162,3 +162,45 @@ export type GuideActionContext = Readonly<{
   testOutput?: string;
   topicMd?: string;
 }>;
+
+export type QuizQuestion = Readonly<{
+  id: string;
+  quizId: string;
+  position: number;
+  type: 'multiple_choice' | 'short_answer';
+  promptMd: string;
+  choices: ReadonlyArray<string> | null;
+  correctAnswer: string;
+  explanation: string;
+}>;
+
+export type Quiz = Readonly<{
+  id: string;
+  topicId: string;
+  title: string;
+  createdAt: string;
+  questions: ReadonlyArray<QuizQuestion>;
+}>;
+
+export type QuizAttemptStatus = 'in_progress' | 'completed';
+
+export type QuizAnswer = Readonly<{
+  id: string;
+  attemptId: string;
+  questionId: string;
+  selectedAnswer: string;
+  isCorrect: boolean;
+  feedback: string | null;
+}>;
+
+export type QuizAttempt = Readonly<{
+  id: string;
+  quizId: string;
+  status: QuizAttemptStatus;
+  score: number | null;
+  totalQuestions: number | null;
+  durationMs: number | null;
+  startedAt: string;
+  completedAt: string | null;
+  answers: ReadonlyArray<QuizAnswer>;
+}>;

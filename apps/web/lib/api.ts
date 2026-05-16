@@ -10,6 +10,9 @@ import type {
   PlanDetail,
   PlanSummary,
   ProgressEvent,
+  Quiz,
+  QuizAnswer,
+  QuizAttempt,
   ResumeState,
   RunResult,
   SetupState,
@@ -154,4 +157,15 @@ export const api = {
     request<Readonly<{ visualizations: ReadonlyArray<Visualization> }>>(
       `/api/tasks/${taskId}/visualizations`,
     ),
+  getQuiz: (id: string) => request<Quiz>(`/api/quizzes/${id}`),
+  startQuizAttempt: (quizId: string) =>
+    request<QuizAttempt>(`/api/quizzes/${quizId}/attempts`, { method: 'POST' }),
+  saveQuizAnswer: (attemptId: string, questionId: string, selectedAnswer: string) =>
+    request<QuizAnswer>(`/api/quiz-attempts/${attemptId}/answers/${questionId}`, {
+      body: JSON.stringify({ selectedAnswer }),
+      method: 'PUT',
+    }),
+  completeQuizAttempt: (attemptId: string) =>
+    request<QuizAttempt>(`/api/quiz-attempts/${attemptId}/complete`, { method: 'POST' }),
+  getQuizAttempt: (attemptId: string) => request<QuizAttempt>(`/api/quiz-attempts/${attemptId}`),
 };

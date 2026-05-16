@@ -11,6 +11,12 @@
       },
       "outputs": ["{workspaceRoot}/dist/apps/api"]
     },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint apps/api --ext .ts --max-warnings=0"
+      }
+    },
     "serve": {
       "executor": "nx:run-commands",
       "options": {

@@ -17,6 +17,12 @@
         "command": "next dev apps/web -p 3000"
       }
     },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint apps/web --ext .ts,.tsx --max-warnings=0"
+      }
+    },
     "start": {
       "executor": "nx:run-commands",
       "options": {

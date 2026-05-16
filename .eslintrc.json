@@ -1,0 +1,5 @@
+{
+  "root": true,
+  "ignorePatterns": ["dist/", ".next/", ".nx/", "node_modules/", "example-of-setup/"],
+  "extends": ["./.eslintrc.base.json"]
+}

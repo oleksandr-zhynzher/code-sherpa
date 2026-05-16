@@ -1,0 +1,20 @@
+{
+  "name": "code-sherpa",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AI-tutored algorithms practice platform.",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oleksandr-zhynzher/code-sherpa.git"
+  },
+  "scripts": {},
+  "devDependencies": {
+    "@nx/js": "^22.7.2",
+    "@nx/next": "^22.7.2",
+    "@nx/node": "^22.7.2",
+    "@nx/workspace": "^22.7.2",
+    "nx": "^22.7.2"
+  }
+}

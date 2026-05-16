@@ -45,7 +45,7 @@ acceptance script.
 7. Click **Run**. Output streams: `5 passed in 0.04s`. Status badge flips
    to **Passing**.
 8. Click **Commit & push**. Toast: `Committed feat(graphs): solve BFS shortest
-   path → opens at github.com/me/algos-journal/commit/…`. Status flips to
+path → opens at github.com/me/algos-journal/commit/…`. Status flips to
    **Done**, topic progress bar moves from 0/3 to 1/3.
 
 ## Day 2 — Resume

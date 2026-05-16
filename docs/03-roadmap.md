@@ -6,7 +6,7 @@ verify passes.
 
 ---
 
-## Stage 0 — NX monorepo bootstrap + quality gates *(initial commit)*
+## Stage 0 — NX monorepo bootstrap + quality gates _(initial commit)_
 
 **Goal.** An empty but properly structured NX monorepo with all quality gates
 and static analyzers in place. This commit is the contract — every line of
@@ -43,8 +43,8 @@ escape hatches:
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "useUnknownInCatchVariables": true,
-    "allowUnreachableCode": false
-  }
+    "allowUnreachableCode": false,
+  },
 }
 ```
 
@@ -167,6 +167,7 @@ Root `docker-compose.yml` with `web` and `api` services. Map
 `.gitignore` covers `workspace/`, `.code-sherpa/`, `.env`, `*.db`.
 
 **Verify.**
+
 - `npm run quality` exits 0 on a clean checkout.
 - `git commit -m "bad message"` is rejected by commitlint.
 - `git commit -m "feat: initialize repo"` is accepted.
@@ -294,7 +295,7 @@ still renders.
 
 ## Stage 8 — Topic explanations + hint ladder
 
-**Goal.** Move beyond just tasks; flesh out the *learning* side.
+**Goal.** Move beyond just tasks; flesh out the _learning_ side.
 
 1. `POST /topics/{id}/explain` — agent writes Markdown into `topic.explanation_md`.
 2. UI topic page renders the explanation with rendered code blocks and viz

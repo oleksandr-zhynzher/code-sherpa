@@ -30,11 +30,12 @@
 ## Components
 
 ### Environment Setup (Docker Compose)
+
 The application is orchestrated via an outer `docker-compose.yml` that definitions two main services:
+
 - **`frontend`** (runs the Next.js UI)
 - **`backend`** (runs Fastify/Node.js)
 - Both services share a common Docker network. The backend container mounts local filesystem directories as volumes so that the `workspace/` and `code-sherpa.db` persist and remain accessible natively on the host machine.
-
 
 ### Frontend (Next.js + React + Tailwind)
 
@@ -51,14 +52,14 @@ The application is orchestrated via an outer `docker-compose.yml` that definitio
 
 Single process, TypeScript. Endpoints split by concern:
 
-| Service       | Endpoints (sketch)                                              |
-| ------------- | --------------------------------------------------------------- |
-| `plan`        | `POST /plans` (generate via agent), `GET /plans/{id}`           |
-| `topic`       | `GET /topics/{id}`, `POST /topics/{id}/explain`                 |
-| `task`        | `POST /tasks/{id}/scaffold`, `POST /tasks/{id}/run`             |
-| `agent`       | `POST /agent/chat` (SSE stream), `POST /agent/visualize`        |
-| `workspace`   | `GET /fs/{path}`, `PUT /fs/{path}`, `POST /git/commit`, `POST /git/push` |
-| `repo`        | `POST /repo/link` (store PAT + url), `GET /repo/status`         |
+| Service     | Endpoints (sketch)                                                       |
+| ----------- | ------------------------------------------------------------------------ |
+| `plan`      | `POST /plans` (generate via agent), `GET /plans/{id}`                    |
+| `topic`     | `GET /topics/{id}`, `POST /topics/{id}/explain`                          |
+| `task`      | `POST /tasks/{id}/scaffold`, `POST /tasks/{id}/run`                      |
+| `agent`     | `POST /agent/chat` (SSE stream), `POST /agent/visualize`                 |
+| `workspace` | `GET /fs/{path}`, `PUT /fs/{path}`, `POST /git/commit`, `POST /git/push` |
+| `repo`      | `POST /repo/link` (store PAT + url), `GET /repo/status`                  |
 
 ### Agent layer (Claude CLI wrapper)
 
@@ -78,7 +79,7 @@ Single process, TypeScript. Endpoints split by concern:
 
 - **SQLite** (`code-sherpa.db`) — see [Data model](#data-model) below.
 - **Local FS workspace** (`./workspace/`) — mirrors the linked GitHub repo's
-  layout. This *is* a git working tree; the linked GitHub repo is its `origin`.
+  layout. This _is_ a git working tree; the linked GitHub repo is its `origin`.
 - **`.code-sherpa/`** in the workspace — agent state: chat transcripts per task,
   cached explanations, viz cache.
 

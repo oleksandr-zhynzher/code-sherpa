@@ -9,7 +9,10 @@
     "type": "git",
     "url": "git+https://github.com/oleksandr-zhynzher/code-sherpa.git"
   },
-  "scripts": {},
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
   "devDependencies": {
     "@nx/js": "^22.7.2",
     "@nx/next": "^22.7.2",
@@ -19,6 +22,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "nx": "^22.7.2",
+    "prettier": "^3.8.3",
     "typescript": "^5.9.3",
     "vitest": "^4.1.6"
   },

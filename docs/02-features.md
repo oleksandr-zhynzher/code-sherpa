@@ -80,8 +80,8 @@ Features are tagged:
 
 ## Brainstormed extras (you asked for more ideas)
 
-These came out of asking *"what would make this stick where LeetCode + ChatGPT
-doesn't?"*:
+These came out of asking _"what would make this stick where LeetCode + ChatGPT
+doesn't?"_:
 
 1. **Forced re-derivation.** When a task is marked done, schedule a future
    "blank-slate" re-attempt. Spaced repetition for code, not flashcards.

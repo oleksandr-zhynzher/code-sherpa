@@ -6,7 +6,7 @@ Learning algorithms requires three things that rarely sit in the same place:
 
 - **Curriculum** — a coherent path through topics matched to your level and goal.
 - **Practice loop** — write code, run tests, see results fast.
-- **Conceptual scaffolding** — explanations and visualizations of *why* a pattern
+- **Conceptual scaffolding** — explanations and visualizations of _why_ a pattern
   works (two pointers, sliding window, DP, graph search, …).
 
 Today you bounce between LeetCode (practice), YouTube/blogs (concepts),
@@ -64,16 +64,16 @@ DeepTutor is the obvious reference (Chat / Deep Solve / Quiz / Visualize / Book
 Engine / TutorBot / Knowledge Hub / Memory). code-sherpa overlaps in spirit but
 narrows aggressively:
 
-| Dimension              | DeepTutor                                         | code-sherpa                                   |
-| ---------------------- | ------------------------------------------------- | --------------------------------------------- |
-| Domain                 | General tutoring across any uploaded material     | Algorithms & data structures only             |
-| Primary artifact       | Conversations, books, notebooks                   | A working **GitHub repo of solved problems**  |
-| Practice loop          | Quizzes generated from KB                         | Code task + tests + commit + repo sync        |
-| Agent runtime          | Multi-provider, multi-agent (TutorBot, nanobot)   | Single local Claude CLI subprocess            |
-| Curriculum             | Book Engine builds reading material               | Learning Plan builds *coding* tasks           |
-| Visualization          | Manim, SVG, Mermaid, Chart.js                     | SVG + Mermaid + Chart.js (no Manim in POC)    |
-| Persistence target     | Internal DB / notebooks                           | Your **own GitHub repo** is the source of truth |
-| Multi-user             | First-class (admin + grants + PocketBase)         | Out of scope                                  |
+| Dimension          | DeepTutor                                       | code-sherpa                                     |
+| ------------------ | ----------------------------------------------- | ----------------------------------------------- |
+| Domain             | General tutoring across any uploaded material   | Algorithms & data structures only               |
+| Primary artifact   | Conversations, books, notebooks                 | A working **GitHub repo of solved problems**    |
+| Practice loop      | Quizzes generated from KB                       | Code task + tests + commit + repo sync          |
+| Agent runtime      | Multi-provider, multi-agent (TutorBot, nanobot) | Single local Claude CLI subprocess              |
+| Curriculum         | Book Engine builds reading material             | Learning Plan builds _coding_ tasks             |
+| Visualization      | Manim, SVG, Mermaid, Chart.js                   | SVG + Mermaid + Chart.js (no Manim in POC)      |
+| Persistence target | Internal DB / notebooks                         | Your **own GitHub repo** is the source of truth |
+| Multi-user         | First-class (admin + grants + PocketBase)       | Out of scope                                    |
 
 The key bet: a **GitHub-repo-as-portfolio** loop is more motivating for a
 developer learning algorithms than a generic notebook. Everything else (plan,

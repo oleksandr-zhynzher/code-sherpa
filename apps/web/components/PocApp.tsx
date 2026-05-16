@@ -158,7 +158,7 @@ export function PocApp() {
         });
 
   return (
-    <main className="shell">
+    <div className="shell">
       <header className="hero">
         <div>
           <p className="eyebrow">code-sherpa POC</p>
@@ -366,6 +366,6 @@ export function PocApp() {
           )}
         </article>
       </section>
-    </main>
+    </div>
   );
 }

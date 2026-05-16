@@ -24,7 +24,8 @@ describe('app routes', () => {
 
     expect(setupMarkup).toContain('Connect what you need');
     expect(setupMarkup).toContain('AI Assistant');
-    expect(learnMarkup).toContain('code-sherpa POC');
-    expect(learnMarkup).toContain('Generate a plan');
+    expect(learnMarkup).toContain('Continue where you left off');
+    expect(learnMarkup).toContain('Two Sum');
+    expect(learnMarkup).toContain('POC controls');
   });
 });

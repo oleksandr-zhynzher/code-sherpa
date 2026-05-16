@@ -136,7 +136,7 @@ export function Tabs({ activeId, items, onSelect }: TabsProps): ReactNode {
             key={item.id}
             aria-selected={isActive}
             className={cx('cs-tab', isActive && 'cs-tab--active')}
-            onClick={() => onSelect?.(item.id)}
+            {...(onSelect === undefined ? {} : { onClick: () => onSelect(item.id) })}
             role="tab"
             tabIndex={isActive ? 0 : -1}
             type="button"

@@ -56,7 +56,13 @@ describe('POC data API', () => {
     const response = await server.inject({
       method: 'POST',
       payload: {
+        agentDriver: 'copilot',
         claudePath: '/usr/local/bin/claude',
+        copilotPath: '/usr/local/bin/copilot',
+        exerciseLanguage: 'typescript',
+        guideTone: 'encouraging',
+        safeRunChecks: true,
+        autoSaveProgress: false,
         repoUrl: 'git@github.com:example/algorithms.git',
       },
       url: '/api/setup',
@@ -64,8 +70,14 @@ describe('POC data API', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
+      agentDriver: 'copilot',
+      autoSaveProgress: false,
       claudePath: '/usr/local/bin/claude',
+      copilotPath: '/usr/local/bin/copilot',
+      exerciseLanguage: 'typescript',
+      guideTone: 'encouraging',
       repoUrl: 'git@github.com:example/algorithms.git',
+      safeRunChecks: true,
       workspacePath: '/tmp/code-sherpa-workspace',
     });
 

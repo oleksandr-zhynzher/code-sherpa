@@ -5,8 +5,14 @@ export const createPlanSchema = z.object({
 });
 
 export const setupSchema = z.object({
+  agentDriver: z.enum(['claude', 'copilot']).default('copilot'),
+  autoSaveProgress: z.boolean().default(true),
   claudePath: z.string().trim().max(500).optional(),
+  copilotPath: z.string().trim().max(500).optional(),
+  exerciseLanguage: z.enum(['python', 'typescript']).default('python'),
+  guideTone: z.enum(['direct', 'encouraging', 'socratic']).default('encouraging'),
   repoUrl: z.string().trim().max(500).optional(),
+  safeRunChecks: z.boolean().default(true),
 });
 
 export const solutionUpdateSchema = z.object({

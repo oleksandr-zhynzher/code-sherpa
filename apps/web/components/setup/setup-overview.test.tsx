@@ -1,16 +1,30 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
+import type { SetupState } from '../../lib/types';
 import { SetupOverview } from './setup-overview';
+
+const baseSetup: SetupState = {
+  agentDriver: 'copilot',
+  autoSaveProgress: true,
+  claudePath: null,
+  copilotPath: null,
+  exerciseLanguage: 'python',
+  guideTone: 'encouraging',
+  repoUrl: null,
+  safeRunChecks: true,
+  workspacePath: './workspace',
+};
 
 describe('SetupOverview', () => {
   it('renders the healthy setup state', () => {
     const markup = renderToStaticMarkup(
       <SetupOverview
         setup={{
+          ...baseSetup,
           claudePath: '/usr/local/bin/claude',
+          copilotPath: '/usr/local/bin/copilot',
           repoUrl: 'git@github.com:me/algos-journal.git',
-          workspacePath: './workspace',
         }}
       />,
     );
@@ -25,9 +39,9 @@ describe('SetupOverview', () => {
     const markup = renderToStaticMarkup(
       <SetupOverview
         setup={{
+          ...baseSetup,
           claudePath: null,
           repoUrl: null,
-          workspacePath: './workspace',
         }}
       />,
     );

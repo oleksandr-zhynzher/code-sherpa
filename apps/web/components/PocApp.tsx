@@ -18,6 +18,17 @@ import type {
 const defaultGoal =
   'I have 3 weeks before interviews. I struggle with graphs and dynamic programming. 45 min/day.';
 const defaultWorkspacePath = './workspace';
+const defaultSetupState: SetupState = {
+  agentDriver: 'copilot',
+  autoSaveProgress: true,
+  claudePath: null,
+  copilotPath: null,
+  exerciseLanguage: 'python',
+  guideTone: 'encouraging',
+  repoUrl: null,
+  safeRunChecks: true,
+  workspacePath: defaultWorkspacePath,
+};
 
 function findTask(plan: PlanDetail | null, taskId: string | null): Task | null {
   if (plan === null || taskId === null) {
@@ -82,8 +93,8 @@ export function PocApp() {
   const saveSetup = () =>
     mutate('Saving setup...', async () => {
       const setupState = await api.saveSetup({
-        claudePath: setup?.claudePath ?? '',
-        repoUrl: setup?.repoUrl ?? '',
+        ...(setup ?? defaultSetupState),
+        workspacePath: setup?.workspacePath ?? defaultWorkspacePath,
       });
       setSetup(setupState);
     });
@@ -184,9 +195,8 @@ export function PocApp() {
               value={setup?.claudePath ?? ''}
               onChange={(event) =>
                 setSetup((current) => ({
+                  ...(current ?? defaultSetupState),
                   claudePath: event.target.value,
-                  repoUrl: current?.repoUrl ?? '',
-                  workspacePath: current?.workspacePath ?? defaultWorkspacePath,
                 }))
               }
               placeholder="/usr/local/bin/claude"
@@ -198,9 +208,8 @@ export function PocApp() {
               value={setup?.repoUrl ?? ''}
               onChange={(event) =>
                 setSetup((current) => ({
-                  claudePath: current?.claudePath ?? '',
+                  ...(current ?? defaultSetupState),
                   repoUrl: event.target.value,
-                  workspacePath: current?.workspacePath ?? defaultWorkspacePath,
                 }))
               }
               placeholder="git@github.com:me/algos-journal.git"

@@ -411,6 +411,67 @@ button {
   width: fit-content;
 }
 
+.setup-config {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 2rem;
+}
+
+.setup-config__panel {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--rounded-md);
+  background: var(--surface-card);
+  padding: 1.25rem;
+}
+
+.setup-config__panel h2,
+.setup-config__panel p {
+  margin: 0;
+}
+
+.setup-config__panel h2 {
+  color: var(--foreground-primary);
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+}
+
+.setup-config__panel p {
+  color: var(--foreground-muted);
+  line-height: 1.55;
+}
+
+.setup-config__back {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 0.75rem;
+  color: var(--accent-primary);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.cs-field select {
+  width: 100%;
+  border: 1px solid #c9d4e5;
+  border-radius: 0.75rem;
+  background: var(--surface-input);
+  color: var(--foreground-primary);
+  margin-top: 0.4rem;
+  padding: 0.8rem;
+}
+
+.setup-config__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.setup-config__actions a {
+  text-decoration: none;
+}
+
 .home-page {
   min-height: 100vh;
   background: var(--surface-primary);

@@ -42,8 +42,14 @@ export type PlanDetail = PlanSummary &
   }>;
 
 export type SetupState = Readonly<{
+  agentDriver: 'claude' | 'copilot';
+  autoSaveProgress: boolean;
   claudePath: string | null;
+  copilotPath: string | null;
+  exerciseLanguage: 'python' | 'typescript';
+  guideTone: 'direct' | 'encouraging' | 'socratic';
   repoUrl: string | null;
+  safeRunChecks: boolean;
   workspacePath: string;
 }>;
 

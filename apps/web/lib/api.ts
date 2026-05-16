@@ -73,7 +73,7 @@ export const api = {
     request<Readonly<{ result: RunResult; task: Task }>>(`/api/tasks/${taskId}/run`, {
       method: 'POST',
     }),
-  saveSetup: (input: Readonly<{ claudePath: string; repoUrl: string }>) =>
+  saveSetup: (input: SetupState) =>
     request<SetupState>('/api/setup', {
       body: JSON.stringify(input),
       method: 'POST',

@@ -48,8 +48,14 @@ export function registerRoutes(server: FastifyInstance): void {
   server.post('/api/setup', async (request, reply) => {
     const input = setupSchema.parse(request.body);
     const setup = server.codeSherpa.db.saveSetup({
+      agentDriver: input.agentDriver,
+      autoSaveProgress: input.autoSaveProgress,
       claudePath: input.claudePath,
+      copilotPath: input.copilotPath,
+      exerciseLanguage: input.exerciseLanguage,
+      guideTone: input.guideTone,
       repoUrl: input.repoUrl,
+      safeRunChecks: input.safeRunChecks,
       workspacePath: server.codeSherpa.workspacePath,
     });
 

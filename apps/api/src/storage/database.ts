@@ -54,8 +54,14 @@ type TaskRow = Readonly<{
 type TaskContextRow = TaskRow & Readonly<{ topic_slug: string }>;
 
 type SettingsRow = Readonly<{
+  agent_driver: SetupState['agentDriver'];
+  auto_save_progress: number;
   claude_path: string | null;
+  copilot_path: string | null;
+  exercise_language: SetupState['exerciseLanguage'];
+  guide_tone: SetupState['guideTone'];
   repo_url: string | null;
+  safe_run_checks: number;
   workspace_path: string;
 }>;
 
@@ -103,7 +109,13 @@ export type CodeSherpaDatabase = Readonly<{
   saveSetup: (
     input: Readonly<{
       claudePath?: string | undefined;
+      agentDriver: SetupState['agentDriver'];
+      autoSaveProgress: boolean;
+      copilotPath?: string | undefined;
+      exerciseLanguage: SetupState['exerciseLanguage'];
+      guideTone: SetupState['guideTone'];
       repoUrl?: string | undefined;
+      safeRunChecks: boolean;
       workspacePath: string;
     }>,
   ) => SetupState;
@@ -223,9 +235,15 @@ function migrate(db: DatabaseSync): void {
 
     CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
+      agent_driver TEXT NOT NULL DEFAULT 'copilot',
+      copilot_path TEXT,
       claude_path TEXT,
       repo_url TEXT,
       workspace_path TEXT NOT NULL,
+      exercise_language TEXT NOT NULL DEFAULT 'python',
+      safe_run_checks INTEGER NOT NULL DEFAULT 1,
+      auto_save_progress INTEGER NOT NULL DEFAULT 1,
+      guide_tone TEXT NOT NULL DEFAULT 'encouraging',
       updated_at TEXT NOT NULL
     );
 
@@ -246,6 +264,26 @@ function migrate(db: DatabaseSync): void {
       created_at TEXT NOT NULL
     );
   `);
+
+  ensureSettingsColumn(db, 'agent_driver', "TEXT NOT NULL DEFAULT 'copilot'");
+  ensureSettingsColumn(db, 'copilot_path', 'TEXT');
+  ensureSettingsColumn(db, 'exercise_language', "TEXT NOT NULL DEFAULT 'python'");
+  ensureSettingsColumn(db, 'safe_run_checks', 'INTEGER NOT NULL DEFAULT 1');
+  ensureSettingsColumn(db, 'auto_save_progress', 'INTEGER NOT NULL DEFAULT 1');
+  ensureSettingsColumn(db, 'guide_tone', "TEXT NOT NULL DEFAULT 'encouraging'");
+}
+
+function ensureSettingsColumn(db: DatabaseSync, name: string, definition: string): void {
+  const rows = db.prepare('PRAGMA table_info(settings)').all() as unknown as ReadonlyArray<
+    Readonly<{
+      name: string;
+    }>
+  >;
+  if (rows.some((row) => row.name === name)) {
+    return;
+  }
+
+  db.exec(`ALTER TABLE settings ADD COLUMN ${name} ${definition}`);
 }
 
 function getPlanSummary(db: DatabaseSync, id: string): PlanSummary {
@@ -371,13 +409,20 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
     },
     getPlan: (id: string) => getPlanDetail(db, id),
     getSetup: (workspacePath: string) => {
-      const row = db
-        .prepare('SELECT claude_path, repo_url, workspace_path FROM settings WHERE id = 1')
-        .get() as SettingsRow | undefined;
+      const row = db.prepare('SELECT * FROM settings WHERE id = 1').get() as
+        | SettingsRow
+        | undefined;
 
       return {
+        agentDriver: row?.agent_driver ?? 'copilot',
+        autoSaveProgress:
+          row?.auto_save_progress === undefined ? true : row.auto_save_progress === 1,
         claudePath: row?.claude_path ?? null,
+        copilotPath: row?.copilot_path ?? null,
+        exerciseLanguage: row?.exercise_language ?? 'python',
+        guideTone: row?.guide_tone ?? 'encouraging',
         repoUrl: row?.repo_url ?? null,
+        safeRunChecks: row?.safe_run_checks === undefined ? true : row.safe_run_checks === 1,
         workspacePath: row?.workspace_path ?? workspacePath,
       };
     },
@@ -481,19 +526,54 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
       const updatedAt = nowIso();
       db.prepare(
         `
-        INSERT INTO settings (id, claude_path, repo_url, workspace_path, updated_at)
-        VALUES (1, ?, ?, ?, ?)
+        INSERT INTO settings (
+          id,
+          agent_driver,
+          copilot_path,
+          claude_path,
+          repo_url,
+          workspace_path,
+          exercise_language,
+          safe_run_checks,
+          auto_save_progress,
+          guide_tone,
+          updated_at
+        )
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
+          agent_driver = excluded.agent_driver,
+          copilot_path = excluded.copilot_path,
           claude_path = excluded.claude_path,
           repo_url = excluded.repo_url,
           workspace_path = excluded.workspace_path,
+          exercise_language = excluded.exercise_language,
+          safe_run_checks = excluded.safe_run_checks,
+          auto_save_progress = excluded.auto_save_progress,
+          guide_tone = excluded.guide_tone,
           updated_at = excluded.updated_at
       `,
-      ).run(input.claudePath ?? null, input.repoUrl ?? null, input.workspacePath, updatedAt);
+      ).run(
+        input.agentDriver,
+        input.copilotPath ?? null,
+        input.claudePath ?? null,
+        input.repoUrl ?? null,
+        input.workspacePath,
+        input.exerciseLanguage,
+        input.safeRunChecks ? 1 : 0,
+        input.autoSaveProgress ? 1 : 0,
+        input.guideTone,
+        updatedAt,
+      );
 
       return {
+        agentDriver: input.agentDriver,
+        autoSaveProgress: input.autoSaveProgress,
         claudePath: input.claudePath ?? null,
+        copilotPath: input.copilotPath ?? null,
+        exerciseLanguage: input.exerciseLanguage,
+        guideTone: input.guideTone,
         repoUrl: input.repoUrl ?? null,
+        safeRunChecks: input.safeRunChecks,
         workspacePath: input.workspacePath,
       };
     },

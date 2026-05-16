@@ -1,6 +1,6 @@
-# AlmaMater — AI-Tutored Algorithms Practice Platform
+# code-sherpa — AI-Tutored Algorithms Practice Platform
 
-AlmaMater is a personal learning platform for mastering algorithms and data structures.
+code-sherpa is a personal learning platform for mastering algorithms and data structures.
 You collaborate with an AI tutor (running locally via the Claude CLI) to:
 
 1. Generate a **personalized learning plan** stored in a database.
@@ -11,7 +11,7 @@ You collaborate with an AI tutor (running locally via the Claude CLI) to:
    (two pointers, sliding window, recursion trees, graph traversals, …).
 
 Inspired by [DeepTutor](https://github.com/HKUDS/DeepTutor) (HKUDS) — see
-[docs/00-vision.md](docs/00-vision.md#inspiration--differentiation) for how AlmaMater
+[docs/00-vision.md](docs/00-vision.md#inspiration--differentiation) for how code-sherpa
 borrows from and diverges from it.
 
 ## POC documentation

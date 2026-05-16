@@ -61,10 +61,10 @@ or just systematically filling gaps. Wants:
 ## Inspiration & differentiation
 
 DeepTutor is the obvious reference (Chat / Deep Solve / Quiz / Visualize / Book
-Engine / TutorBot / Knowledge Hub / Memory). AlmaMater overlaps in spirit but
+Engine / TutorBot / Knowledge Hub / Memory). code-sherpa overlaps in spirit but
 narrows aggressively:
 
-| Dimension              | DeepTutor                                         | AlmaMater                                     |
+| Dimension              | DeepTutor                                         | code-sherpa                                   |
 | ---------------------- | ------------------------------------------------- | --------------------------------------------- |
 | Domain                 | General tutoring across any uploaded material     | Algorithms & data structures only             |
 | Primary artifact       | Conversations, books, notebooks                   | A working **GitHub repo of solved problems**  |

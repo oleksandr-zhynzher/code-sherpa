@@ -13,7 +13,7 @@
 │ └──────────────────────────────┬─────────────────────────────────────┘ │
 │                                │ HTTP + WebSocket (SSE)                │
 │ ┌──────────────────────────────▼─────────────────────────────────────┐ │
-│ │                       Backend (FastAPI)                            │ │
+│ │                       Backend (Fastify/Node.js)                    │ │
 │ │                              [Port 8000]                           │ │
 │ │  ┌────────────┐ ┌─────────────┐ ┌──────────────┐ ┌──────────────┐  │ │
 │ │  │ Plan svc   │ │ Task svc    │ │ Agent svc    │ │ Workspace svc│  │ │
@@ -32,8 +32,8 @@
 ### Environment Setup (Docker Compose)
 The application is orchestrated via an outer `docker-compose.yml` that definitions two main services:
 - **`frontend`** (runs the Next.js UI)
-- **`backend`** (runs FastAPI)
-- Both services share a common Docker network. The backend container mounts local filesystem directories as volumes so that the `workspace/` and `almamater.db` persist and remain accessible natively on the host machine.
+- **`backend`** (runs Fastify/Node.js)
+- Both services share a common Docker network. The backend container mounts local filesystem directories as volumes so that the `workspace/` and `code-sherpa.db` persist and remain accessible natively on the host machine.
 
 
 ### Frontend (Next.js + React + Tailwind)
@@ -47,9 +47,9 @@ The application is orchestrated via an outer `docker-compose.yml` that definitio
 - **Chat panel** — streaming tutor responses; supports inline viz blocks.
 - **Viz renderer** — switches on block type: `mermaid`, `svg`, `chartjs`, `html`.
 
-### Backend (FastAPI)
+### Backend (Fastify/Node.js)
 
-Single process. Endpoints split by concern:
+Single process, TypeScript. Endpoints split by concern:
 
 | Service       | Endpoints (sketch)                                              |
 | ------------- | --------------------------------------------------------------- |
@@ -62,7 +62,7 @@ Single process. Endpoints split by concern:
 
 ### Agent layer (Claude CLI wrapper)
 
-- Spawns `claude` (or your installed CLI binary) as a subprocess per request.
+- Spawns `claude` (or your installed CLI binary) as a subprocess via Node.js `child_process.spawn`.
 - Communicates via stdin (prompt + system prompt + structured JSON context)
   and stdout (streamed tokens + tool-call blocks).
 - A small **tool protocol** lets the agent call backend functions:
@@ -76,10 +76,10 @@ Single process. Endpoints split by concern:
 
 ### Storage
 
-- **SQLite** (`almamater.db`) — see [Data model](#data-model) below.
+- **SQLite** (`code-sherpa.db`) — see [Data model](#data-model) below.
 - **Local FS workspace** (`./workspace/`) — mirrors the linked GitHub repo's
   layout. This *is* a git working tree; the linked GitHub repo is its `origin`.
-- **`.almamater/`** in the workspace — agent state: chat transcripts per task,
+- **`.code-sherpa/`** in the workspace — agent state: chat transcripts per task,
   cached explanations, viz cache.
 
 ### GitHub integration
@@ -204,7 +204,7 @@ CREATE TABLE repo_link (
 
 ## Security notes (POC scope)
 
-- PAT stored encrypted with a key in `~/.almamater/key` (mode 0600).
+- PAT stored encrypted with a key in `~/.code-sherpa/key` (mode 0600).
 - Backend bound to `127.0.0.1` only.
 - Tests run inside the user's local Python/Node — no sandbox in POC. Document
   that running untrusted agent-generated code carries risk and require

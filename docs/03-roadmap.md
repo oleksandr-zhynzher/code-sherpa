@@ -6,20 +6,171 @@ verify passes.
 
 ---
 
-## Stage 0 — Repo & toolchain bootstrap
+## Stage 0 — NX monorepo bootstrap + quality gates *(initial commit)*
 
-**Goal.** Empty but runnable monorepo via Docker.
+**Goal.** An empty but properly structured NX monorepo with all quality gates
+and static analyzers in place. This commit is the contract — every line of
+code that follows must pass the same gates.
 
-1. Create folders: `backend/`, `web/`, `docs/` (already exists), `workspace/`
-   (gitignored), `.almamater/` (gitignored).
-2. `backend/`: `pyproject.toml` with FastAPI, uvicorn, pydantic, sqlite3 (stdlib),
-   pytest. Add `Dockerfile` for the Python backend.
-3. `web/`: `npm create next-app` (TS, Tailwind, App Router). Add `Dockerfile` for the Node.js frontend.
-4. Root `docker-compose.yml` defining `frontend` and `backend` services. Map `workspace/` and `.almamater/` as volumes into the backend container.
-5. `.gitignore` covers `workspace/`, `.almamater/`, `.env`, `*.db`.
+### 0.1 — NX workspace initialization
 
-**Verify.** `docker compose up --build` boots FastAPI on `127.0.0.1:8000` and Next.js on `:3000`;
-both serve a hello page.
+```bash
+npx create-nx-workspace@latest code-sherpa --preset=ts --packageManager=npm
+```
+
+Add the two apps inside the workspace:
+
+```bash
+nx g @nx/next:app web            # Next.js frontend (TS, Tailwind, App Router)
+nx g @nx/node:app api            # Node.js backend (Fastify, TypeScript)
+```
+
+### 0.2 — TypeScript strict mode
+
+Configure `tsconfig.base.json` at the root with the full strict surface — no
+escape hatches:
+
+```jsonc
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "useUnknownInCatchVariables": true,
+    "allowUnreachableCode": false
+  }
+}
+```
+
+Each app's `tsconfig.json` extends `../../tsconfig.base.json`.
+
+### 0.3 — ESLint strict configuration
+
+Install the full plugin set (no Storybook):
+
+```
+@typescript-eslint/eslint-plugin  @typescript-eslint/parser
+eslint-config-prettier            eslint-import-resolver-typescript
+eslint-plugin-boundaries          eslint-plugin-eslint-comments
+eslint-plugin-functional          eslint-plugin-import
+eslint-plugin-no-secrets          eslint-plugin-perfectionist
+eslint-plugin-promise             eslint-plugin-regexp
+eslint-plugin-security            eslint-plugin-simple-import-sort
+eslint-plugin-sonarjs             eslint-plugin-unicorn
+eslint-plugin-unused-imports      eslint-plugin-jsx-a11y (web only)
+eslint-plugin-react               eslint-plugin-react-hooks (web only)
+eslint-plugin-tailwindcss         (web only)
+eslint-plugin-testing-library     (both apps)
+```
+
+Root `.eslintrc.base.json` enables all shared rules at `error` level and
+`--max-warnings=0`. Each app extends it and adds its own layer
+(e.g. React rules for `web`, Node.js security rules for `api`).
+
+NX project targets:
+
+```jsonc
+// apps/web/project.json  and  apps/api/project.json
+"lint": {
+  "executor": "@nx/eslint:lint",
+  "options": { "lintFilePatterns": ["apps/<name>/**/*.ts?(x)"], "maxWarnings": 0 }
+}
+```
+
+### 0.4 — Prettier
+
+Root `.prettierrc` (single source of truth):
+
+```json
+{
+  "singleQuote": true,
+  "trailingComma": "all",
+  "semi": true,
+  "printWidth": 100,
+  "tabWidth": 2
+}
+```
+
+`format` and `format:check` targets wired via `prettier --write .` /
+`prettier --check .`.
+
+### 0.5 — Commit standardization (Husky + commitlint)
+
+```bash
+npm install --save-dev husky @commitlint/cli @commitlint/config-conventional
+npx husky init
+```
+
+`commitlint.config.js`:
+
+```js
+export default { extends: ['@commitlint/config-conventional'] };
+```
+
+Hooks:
+
+```bash
+# .husky/commit-msg
+npx --no -- commitlint --edit "$1"
+
+# .husky/pre-commit
+npx lint-staged
+```
+
+`lint-staged` config in `package.json`:
+
+```json
+"lint-staged": {
+  "*.{ts,tsx}": ["eslint --max-warnings=0 --fix", "prettier --write"],
+  "*.{json,md,yml}": ["prettier --write"]
+}
+```
+
+Valid commit format: `<type>(<scope>): <subject>`
+Types: `feat | fix | docs | chore | refactor | test | ci | perf | revert`
+
+Example:
+
+```bash
+git commit -m "feat(api): add plan CRUD endpoints"
+git commit -m "chore: initialize NX workspace with quality gates"
+```
+
+### 0.6 — Root quality scripts
+
+`package.json` at monorepo root:
+
+```json
+"scripts": {
+  "lint":          "nx run-many -t lint -- --max-warnings=0",
+  "lint:affected": "nx affected -t lint -- --max-warnings=0",
+  "typecheck":     "tsc -b",
+  "format:check":  "prettier --check .",
+  "format":        "prettier --write .",
+  "build":         "nx run-many -t build",
+  "test":          "nx run-many -t test",
+  "quality":       "npm run format:check && npm run lint && npm run typecheck && npm run build && npm run test"
+}
+```
+
+### 0.7 — Docker Compose skeleton
+
+Root `docker-compose.yml` with `web` and `api` services. Map
+`workspace/` and `.code-sherpa/` as volumes into the `api` container.
+
+`.gitignore` covers `workspace/`, `.code-sherpa/`, `.env`, `*.db`.
+
+**Verify.**
+- `npm run quality` exits 0 on a clean checkout.
+- `git commit -m "bad message"` is rejected by commitlint.
+- `git commit -m "feat: initialize repo"` is accepted.
+- `docker compose up --build` boots the `api` on `127.0.0.1:8000` and `web` on `:3000`, each returning a hello response.
 
 ---
 
@@ -28,14 +179,14 @@ both serve a hello page.
 **Goal.** Persist the data model without any AI involved.
 
 1. Create the schema from [docs/01-architecture.md](01-architecture.md#data-model-sqlite)
-   as `backend/migrations/001_init.sql`. Run on startup if absent.
-2. Pydantic models for `Plan`, `Topic`, `Task`.
+   as `apps/api/src/db/migrations/001_init.sql`. Apply on startup if absent using `better-sqlite3`.
+2. Zod schemas + TypeScript types for `Plan`, `Topic`, `Task`.
 3. Endpoints: `POST/GET /plans`, `GET /topics/{id}`, `GET /tasks/{id}`.
 4. **Seed a hand-written plan** ("Arrays & Two Pointers, 3 tasks") so the UI
    has something real to show.
 5. Frontend: plan list page → plan detail (tree of topics/tasks).
 
-**Verify.** Create plan via `curl`, see it render in the browser. Pytest covers
+**Verify.** Create plan via `curl`, see it render in the browser. Vitest covers
 CRUD + cascade deletes.
 
 ---
@@ -48,8 +199,8 @@ CRUD + cascade deletes.
    `repo_link`, `git clone`s into `workspace/`.
 2. `GET /fs/{path}`, `PUT /fs/{path}` — read/write inside `workspace/` only
    (path-traversal guard).
-3. `POST /git/commit` (`{message}`), `POST /git/push`. Use `subprocess` with a
-   credential helper file pointing at the encrypted PAT.
+3. `POST /git/commit` (`{message}`), `POST /git/push`. Use Node.js `child_process.exec`
+   with a credential helper file pointing at the encrypted PAT.
 4. UI: "Settings → Link repo" form. After linking, "Repo OK ✓" badge.
 
 **Verify.** Link a throwaway GitHub repo, edit a file via the UI, commit, push;
@@ -61,8 +212,8 @@ see the commit appear on GitHub. Path traversal attempts return 400.
 
 **Goal.** Stream tokens from the local CLI into the browser.
 
-1. `backend/agent/cli.py` — `class ClaudeAgent` with `async def stream(prompt, system)`
-   that spawns the CLI subprocess and yields stdout chunks.
+1. `apps/api/src/agent/cli.ts` — `class ClaudeAgent` with `async *stream(prompt, system)`
+   that spawns the CLI subprocess via `child_process.spawn` and yields stdout chunks.
 2. `POST /agent/chat` — SSE endpoint that pipes the stream.
 3. UI: chat panel on a task page; user message → streamed assistant reply,
    persisted to `chat_message`.
@@ -163,8 +314,8 @@ yields qualitatively different responses at each level.
 1. Plan/topic progress bars and a streak counter on the home page.
 2. Keyboard shortcuts: `g p` plan, `g t` task, `r` run, `c` commit.
 3. Empty/error states everywhere (no whitescreen).
-4. Backup script: nightly copy of `almamater.db` into the linked repo under
-   `.almamater/backup.db`.
+4. Backup script: nightly copy of `code-sherpa.db` into the linked repo under
+   `.code-sherpa/backup.db`.
 
 **Verify.** You run a real one-week sprint with it and don't have to drop
 into the terminal except for the initial `make dev`.
@@ -185,7 +336,7 @@ often you use the tool, then build it. Likely candidates from
 
 ## Working principles for every stage
 
-- **Tests first** for the backend stage you're on (pytest). Don't accept code
+- **Tests first** for every stage (Vitest). Don't accept code
   without a regression test.
 - **Touch only what the stage requires.** Resist refactoring earlier stages
   while building a later one — log it as a TODO in `docs/`.

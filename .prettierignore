@@ -3,6 +3,7 @@ dist/
 .nx/
 .next/
 .github/
+apps/web/next-env.d.ts
 coverage/
 workspace/
 .code-sherpa/

@@ -7,17 +7,33 @@ import type {
   AgentSessionStore,
   AgentStreamEvent,
   AgentToolCall,
+  AgentToolResult,
 } from './driver.js';
 import { createAgentSessionService } from './session-service.js';
+import { createAgentToolRegistry } from './tool-registry.js';
 
 const sessionId = 'session-1';
 const authErrorMessage = 'CLI is not authenticated';
 const runCancelledMessage = 'Agent run cancelled';
 const streamDisconnectedMessage = 'CLI stream disconnected';
+const hashMapToolArgsJson = '{"topic":"hash-map"}';
+const taskContextToolArgsJson = '{"taskId":"task-1"}';
+const treesToolArgsJson = '{"topic":"trees"}';
+const toolResultPromptMarker = 'Backend-mediated tool results';
+const createQuizToolName = 'create_quiz';
+const getTaskContextToolName = 'get_task_context';
+const needContextContent = 'Need context.';
+const hashMapAnswer = 'Use a hash map.';
+const taskContextResultJson = '{"args":{"taskId":"task-1"},"title":"Two Sum"}';
 
 function createStore(): AgentSessionStore & {
   readonly completions: ReadonlyArray<
-    Readonly<{ contentMd: string; id: string; toolCalls: ReadonlyArray<AgentToolCall> }>
+    Readonly<{
+      contentMd: string;
+      id: string;
+      toolCalls: ReadonlyArray<AgentToolCall>;
+      toolResults: ReadonlyArray<AgentToolResult>;
+    }>
   >;
   readonly failures: ReadonlyArray<
     Readonly<{
@@ -25,13 +41,19 @@ function createStore(): AgentSessionStore & {
       errorMessage: string;
       id: string;
       toolCalls: ReadonlyArray<AgentToolCall>;
+      toolResults: ReadonlyArray<AgentToolResult>;
     }>
   >;
   readonly starts: ReadonlyArray<Readonly<{ driver: string; prompt: string }>>;
 } {
   const starts: Array<Readonly<{ driver: string; prompt: string }>> = [];
   const completions: Array<
-    Readonly<{ contentMd: string; id: string; toolCalls: ReadonlyArray<AgentToolCall> }>
+    Readonly<{
+      contentMd: string;
+      id: string;
+      toolCalls: ReadonlyArray<AgentToolCall>;
+      toolResults: ReadonlyArray<AgentToolResult>;
+    }>
   > = [];
   const failures: Array<
     Readonly<{
@@ -39,6 +61,7 @@ function createStore(): AgentSessionStore & {
       errorMessage: string;
       id: string;
       toolCalls: ReadonlyArray<AgentToolCall>;
+      toolResults: ReadonlyArray<AgentToolResult>;
     }>
   > = [];
 
@@ -47,7 +70,12 @@ function createStore(): AgentSessionStore & {
     failures,
     starts,
     complete: async (id, result) => {
-      completions.push({ contentMd: result.contentMd, id, toolCalls: result.toolCalls ?? [] });
+      completions.push({
+        contentMd: result.contentMd,
+        id,
+        toolCalls: result.toolCalls ?? [],
+        toolResults: result.toolResults ?? [],
+      });
     },
     fail: async (id, result) => {
       failures.push({
@@ -55,6 +83,7 @@ function createStore(): AgentSessionStore & {
         errorMessage: result.errorMessage,
         id,
         toolCalls: result.toolCalls ?? [],
+        toolResults: result.toolResults ?? [],
       });
     },
     start: async (input) => {
@@ -91,27 +120,57 @@ describe('AgentSessionService', () => {
     const driver: AgentDriver = {
       kind: 'fake',
       healthCheck: async () => ({ ok: true }),
-      run: async (input: AgentRunInput): Promise<AgentRunResult> => ({
-        contentMd: `answered: ${input.prompt}`,
-        toolCalls: [{ argumentsJson: '{"topic":"hash-map"}', name: input.tools[0].name }],
-      }),
+      run: async (input: AgentRunInput): Promise<AgentRunResult> =>
+        input.prompt.includes(toolResultPromptMarker)
+          ? { contentMd: 'final answer with quiz context' }
+          : {
+              contentMd: `answered: ${input.prompt}`,
+              toolCalls: [{ argumentsJson: hashMapToolArgsJson, name: input.tools[0].name }],
+              toolResults: [],
+            },
       stream: async function* () {},
     };
-    const service = createAgentSessionService({ driver, store });
+    const registry = createAgentToolRegistry([
+      {
+        description: 'Creates a quiz',
+        execute: async (args) => ({ args, quizId: 'quiz-1' }),
+        name: createQuizToolName,
+        parametersJsonSchema: '{}',
+      },
+    ]);
+    const service = createAgentSessionService({ driver, store, tools: registry });
 
     const result = await service.run({
       prompt: 'Explain hash maps',
-      tools: [{ description: 'Creates a quiz', name: 'create_quiz', parametersJsonSchema: '{}' }],
+      tools: [
+        { description: 'Creates a quiz', name: createQuizToolName, parametersJsonSchema: '{}' },
+      ],
     });
 
-    expect(result.contentMd).toBe('answered: Explain hash maps');
+    expect(result.contentMd).toBe('answered: Explain hash maps\n\nfinal answer with quiz context');
     expect(result.toolCalls).toHaveLength(1);
+    expect(result.toolResults).toEqual([
+      {
+        argumentsJson: hashMapToolArgsJson,
+        name: createQuizToolName,
+        resultJson: '{"args":{"topic":"hash-map"},"quizId":"quiz-1"}',
+        status: 'ok',
+      },
+    ]);
     expect(store.starts).toEqual([{ driver: 'fake', prompt: 'Explain hash maps' }]);
     expect(store.completions).toEqual([
       {
-        contentMd: 'answered: Explain hash maps',
+        contentMd: 'answered: Explain hash maps\n\nfinal answer with quiz context',
         id: sessionId,
-        toolCalls: [{ argumentsJson: '{"topic":"hash-map"}', name: 'create_quiz' }],
+        toolCalls: [{ argumentsJson: hashMapToolArgsJson, name: createQuizToolName }],
+        toolResults: [
+          {
+            argumentsJson: hashMapToolArgsJson,
+            name: createQuizToolName,
+            resultJson: '{"args":{"topic":"hash-map"},"quizId":"quiz-1"}',
+            status: 'ok',
+          },
+        ],
       },
     ]);
     expect(store.failures).toEqual([]);
@@ -139,7 +198,202 @@ describe('AgentSessionService', () => {
       { delta: 'hello', type: 'content' },
       { delta: ' world', type: 'content' },
     ]);
-    expect(store.completions).toEqual([{ contentMd: 'hello world', id: sessionId, toolCalls: [] }]);
+    expect(store.completions).toEqual([
+      { contentMd: 'hello world', id: sessionId, toolCalls: [], toolResults: [] },
+    ]);
+  });
+
+  it('passes mediated tool definitions to the driver and stores tool results', async () => {
+    const store = createStore();
+    const registry = createAgentToolRegistry([
+      {
+        description: 'Looks up task context',
+        execute: async (args) => ({ args, title: 'Two Sum' }),
+        name: getTaskContextToolName,
+        parametersJsonSchema: '{"type":"object"}',
+      },
+    ]);
+    const driver: AgentDriver = {
+      kind: 'fake',
+      healthCheck: async () => ({ ok: true }),
+      run: async (input) =>
+        input.prompt.includes(toolResultPromptMarker)
+          ? { contentMd: hashMapAnswer }
+          : {
+              contentMd: needContextContent,
+              toolCalls: [{ argumentsJson: taskContextToolArgsJson, name: input.tools[0].name }],
+            },
+      stream: async function* () {},
+    };
+    const service = createAgentSessionService({ driver, store, tools: registry });
+
+    const result = await service.run({ prompt: 'Help me' });
+
+    expect(result.toolResults).toEqual([
+      {
+        argumentsJson: taskContextToolArgsJson,
+        name: getTaskContextToolName,
+        resultJson: taskContextResultJson,
+        status: 'ok',
+      },
+    ]);
+    expect(result.contentMd).toBe(`${needContextContent}\n\n${hashMapAnswer}`);
+    expect(store.completions).toEqual([
+      {
+        contentMd: `${needContextContent}\n\n${hashMapAnswer}`,
+        id: sessionId,
+        toolCalls: [{ argumentsJson: taskContextToolArgsJson, name: getTaskContextToolName }],
+        toolResults: [
+          {
+            argumentsJson: taskContextToolArgsJson,
+            name: getTaskContextToolName,
+            resultJson: taskContextResultJson,
+            status: 'ok',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('records returned tool calls when mediated execution fails', async () => {
+    const store = createStore();
+    const driver: AgentDriver = {
+      kind: 'fake',
+      healthCheck: async () => ({ ok: true }),
+      run: async () => ({
+        contentMd: 'Need unavailable tool.',
+        toolCalls: [{ argumentsJson: '{}', name: 'unknown_tool' }],
+      }),
+      stream: async function* () {},
+    };
+    const service = createAgentSessionService({
+      driver,
+      store,
+      tools: createAgentToolRegistry([]),
+    });
+
+    await expect(service.run({ prompt: 'Help me' })).rejects.toThrow(
+      'Agent tool unknown_tool is not registered',
+    );
+    expect(store.failures).toEqual([
+      {
+        contentMd: 'Need unavailable tool.',
+        errorMessage: 'Agent tool unknown_tool is not registered',
+        id: sessionId,
+        toolCalls: [{ argumentsJson: '{}', name: 'unknown_tool' }],
+        toolResults: [],
+      },
+    ]);
+  });
+
+  it('keeps successful tool results when a later mediated tool call fails', async () => {
+    const store = createStore();
+    const driver: AgentDriver = {
+      kind: 'fake',
+      healthCheck: async () => ({ ok: true }),
+      run: async () => ({
+        contentMd: 'Need two tools.',
+        toolCalls: [
+          { argumentsJson: '{}', name: 'ok_tool' },
+          { argumentsJson: '{}', name: 'missing_tool' },
+        ],
+      }),
+      stream: async function* () {},
+    };
+    const service = createAgentSessionService({
+      driver,
+      store,
+      tools: createAgentToolRegistry([
+        {
+          description: 'Succeeds',
+          execute: async () => ({ ok: true }),
+          name: 'ok_tool',
+          parametersJsonSchema: '{}',
+        },
+      ]),
+    });
+
+    await expect(service.run({ prompt: 'Help me' })).rejects.toThrow(
+      'Agent tool missing_tool is not registered',
+    );
+    expect(store.failures).toEqual([
+      {
+        contentMd: 'Need two tools.',
+        errorMessage: 'Agent tool missing_tool is not registered',
+        id: sessionId,
+        toolCalls: [
+          { argumentsJson: '{}', name: 'ok_tool' },
+          { argumentsJson: '{}', name: 'missing_tool' },
+        ],
+        toolResults: [
+          {
+            argumentsJson: '{}',
+            name: 'ok_tool',
+            resultJson: '{"ok":true}',
+            status: 'ok',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('feeds streamed tool results back to the driver and stores the final answer', async () => {
+    const store = createStore();
+    const registry = createAgentToolRegistry([
+      {
+        description: 'Looks up task context',
+        execute: async (args) => ({ args, title: 'Two Sum' }),
+        name: getTaskContextToolName,
+        parametersJsonSchema: '{"type":"object"}',
+      },
+    ]);
+    const driver: AgentDriver = {
+      kind: 'fake',
+      healthCheck: async () => ({ ok: true }),
+      run: async () => ({ contentMd: '' }),
+      stream: async function* (input) {
+        if (input.prompt.includes(toolResultPromptMarker)) {
+          yield { delta: hashMapAnswer, type: 'content' };
+          return;
+        }
+
+        yield { delta: needContextContent, type: 'content' };
+        yield {
+          toolCall: { argumentsJson: taskContextToolArgsJson, name: getTaskContextToolName },
+          type: 'tool_call',
+        };
+      },
+    };
+    const service = createAgentSessionService({ driver, store, tools: registry });
+
+    const events = [];
+    for await (const event of service.stream({ prompt: 'Help me' })) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      { delta: needContextContent, type: 'content' },
+      {
+        toolCall: { argumentsJson: taskContextToolArgsJson, name: getTaskContextToolName },
+        type: 'tool_call',
+      },
+      { delta: hashMapAnswer, type: 'content' },
+    ]);
+    expect(store.completions).toEqual([
+      {
+        contentMd: `${needContextContent}${hashMapAnswer}`,
+        id: sessionId,
+        toolCalls: [{ argumentsJson: taskContextToolArgsJson, name: getTaskContextToolName }],
+        toolResults: [
+          {
+            argumentsJson: taskContextToolArgsJson,
+            name: getTaskContextToolName,
+            resultJson: taskContextResultJson,
+            status: 'ok',
+          },
+        ],
+      },
+    ]);
   });
 
   it('completes streamed sessions and aborts the driver when the consumer exits early', async () => {
@@ -164,7 +418,9 @@ describe('AgentSessionService', () => {
     }
 
     expect(aborted).toBe(true);
-    expect(store.completions).toEqual([{ contentMd: 'first', id: sessionId, toolCalls: [] }]);
+    expect(store.completions).toEqual([
+      { contentMd: 'first', id: sessionId, toolCalls: [], toolResults: [] },
+    ]);
   });
 
   it('does not hang when cancelled stream cleanup never resolves', async () => {
@@ -206,7 +462,9 @@ describe('AgentSessionService', () => {
 
     expect(result).toBe('completed');
     expect(returnCalled).toBe(true);
-    expect(store.completions).toEqual([{ contentMd: 'first', id: sessionId, toolCalls: [] }]);
+    expect(store.completions).toEqual([
+      { contentMd: 'first', id: sessionId, toolCalls: [], toolResults: [] },
+    ]);
   });
 
   it('records failures when the driver errors', async () => {
@@ -223,7 +481,13 @@ describe('AgentSessionService', () => {
 
     await expect(service.run({ prompt: 'Hello' })).rejects.toThrow(authErrorMessage);
     expect(store.failures).toEqual([
-      { contentMd: '', errorMessage: authErrorMessage, id: sessionId, toolCalls: [] },
+      {
+        contentMd: '',
+        errorMessage: authErrorMessage,
+        id: sessionId,
+        toolCalls: [],
+        toolResults: [],
+      },
     ]);
   });
 
@@ -248,7 +512,13 @@ describe('AgentSessionService', () => {
     );
     expect(aborted).toBe(true);
     expect(store.failures).toEqual([
-      { contentMd: '', errorMessage: 'Agent run timed out', id: sessionId, toolCalls: [] },
+      {
+        contentMd: '',
+        errorMessage: 'Agent run timed out',
+        id: sessionId,
+        toolCalls: [],
+        toolResults: [],
+      },
     ]);
   });
 
@@ -306,7 +576,13 @@ describe('AgentSessionService', () => {
     await expect(result).rejects.toThrow(runCancelledMessage);
     expect(aborted).toBe(true);
     expect(store.failures).toEqual([
-      { contentMd: '', errorMessage: runCancelledMessage, id: sessionId, toolCalls: [] },
+      {
+        contentMd: '',
+        errorMessage: runCancelledMessage,
+        id: sessionId,
+        toolCalls: [],
+        toolResults: [],
+      },
     ]);
   });
 
@@ -319,7 +595,7 @@ describe('AgentSessionService', () => {
       stream: async function* () {
         yield { delta: 'partial ', type: 'content' };
         yield {
-          toolCall: { argumentsJson: '{"topic":"trees"}', name: 'create_quiz' },
+          toolCall: { argumentsJson: treesToolArgsJson, name: createQuizToolName },
           type: 'tool_call',
         };
         throw new Error(streamDisconnectedMessage);
@@ -337,7 +613,8 @@ describe('AgentSessionService', () => {
         contentMd: 'partial ',
         errorMessage: streamDisconnectedMessage,
         id: sessionId,
-        toolCalls: [{ argumentsJson: '{"topic":"trees"}', name: 'create_quiz' }],
+        toolCalls: [{ argumentsJson: treesToolArgsJson, name: createQuizToolName }],
+        toolResults: [],
       },
     ]);
   });
@@ -360,7 +637,13 @@ describe('AgentSessionService', () => {
       }
     }).rejects.toThrow(streamDisconnectedMessage);
     expect(store.failures).toEqual([
-      { contentMd: '', errorMessage: streamDisconnectedMessage, id: sessionId, toolCalls: [] },
+      {
+        contentMd: '',
+        errorMessage: streamDisconnectedMessage,
+        id: sessionId,
+        toolCalls: [],
+        toolResults: [],
+      },
     ]);
   });
 
@@ -390,7 +673,13 @@ describe('AgentSessionService', () => {
     }).rejects.toThrow('Agent stream timed out');
     expect(aborted).toBe(true);
     expect(store.failures).toEqual([
-      { contentMd: '', errorMessage: 'Agent stream timed out', id: sessionId, toolCalls: [] },
+      {
+        contentMd: '',
+        errorMessage: 'Agent stream timed out',
+        id: sessionId,
+        toolCalls: [],
+        toolResults: [],
+      },
     ]);
   });
 });

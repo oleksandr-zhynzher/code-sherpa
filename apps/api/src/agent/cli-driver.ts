@@ -6,6 +6,7 @@ import type {
   AgentDriverRunInput,
   AgentRunResult,
   AgentStreamEvent,
+  AgentToolCall,
 } from './driver.js';
 
 export type CliProcessResult = Readonly<{
@@ -29,23 +30,41 @@ type CliDriverOptions = Readonly<{
 const defaultClaudePath = 'claude';
 const defaultCopilotPath = 'copilot';
 const maxOutputBytes = 2_000_000;
+const copilotNoDirectToolArgs = [
+  '--available-tools=',
+  '--disable-builtin-mcps',
+  '--deny-tool=shell',
+  '--deny-tool=write',
+];
 
 function normalizeExecutablePath(path: string | null | undefined, fallback: string): string {
   return path === undefined || path === null || path.trim().length === 0 ? fallback : path;
 }
 
-function assertNoCliToolRequests(input: AgentDriverRunInput): void {
-  if (input.tools.length > 0) {
-    throw new Error('CLI tool mediation is not enabled yet');
-  }
-}
-
 function formatPrompt(input: AgentDriverRunInput): string {
-  assertNoCliToolRequests(input);
+  const prompt =
+    input.systemPrompt === undefined
+      ? input.prompt
+      : `${input.systemPrompt.trim()}\n\n${input.prompt}`;
 
-  return input.systemPrompt === undefined
-    ? input.prompt
-    : `${input.systemPrompt.trim()}\n\n${input.prompt}`;
+  if (input.tools.length === 0) {
+    return prompt;
+  }
+
+  const toolDescriptions = input.tools
+    .map(
+      (tool) =>
+        `- ${tool.name}: ${tool.description}. Parameters JSON Schema: ${tool.parametersJsonSchema}`,
+    )
+    .join('\n');
+
+  return `${prompt}
+
+Available backend-mediated tools:
+${toolDescriptions}
+
+If you need a backend tool, emit a line exactly in this format and wait for Code Sherpa to execute it:
+CS_TOOL_CALL: {"name":"tool_name","arguments":{}}`;
 }
 
 function normalizeOutput(output: string): string {
@@ -65,6 +84,53 @@ function cliFailureMessage(result: CliProcessResult): string {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'CLI command failed';
+}
+
+function parseMediatedToolPayload(payloadText: string): unknown {
+  try {
+    return JSON.parse(payloadText) as unknown;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error('CLI returned an invalid mediated tool call');
+    }
+
+    throw error;
+  }
+}
+
+function parseMediatedToolCalls(stdout: string) {
+  const contentLines: string[] = [];
+  const toolCalls: AgentToolCall[] = [];
+
+  for (const line of stdout.split(/\r?\n/u)) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine.startsWith('CS_TOOL_CALL:')) {
+      contentLines.push(line);
+      continue;
+    }
+
+    const payloadText = trimmedLine.slice('CS_TOOL_CALL:'.length).trim();
+    const payload = parseMediatedToolPayload(payloadText);
+    if (
+      typeof payload !== 'object' ||
+      payload === null ||
+      !('name' in payload) ||
+      typeof payload.name !== 'string' ||
+      !('arguments' in payload)
+    ) {
+      throw new Error('CLI returned an invalid mediated tool call');
+    }
+
+    toolCalls.push({
+      argumentsJson: JSON.stringify(payload.arguments),
+      name: payload.name,
+    });
+  }
+
+  return {
+    contentMd: normalizeOutput(contentLines.join('\n')),
+    toolCalls,
+  };
 }
 
 async function checkCliHealth(check: () => Promise<CliProcessResult>, okMessage: string) {
@@ -90,13 +156,17 @@ async function runChecked(
     throw new Error(cliFailureMessage(result));
   }
 
-  return { contentMd: normalizeOutput(result.stdout) };
+  const parsed = parseMediatedToolCalls(result.stdout);
+  return parsed.toolCalls.length === 0 ? { contentMd: parsed.contentMd } : parsed;
 }
 
 async function* runAsStream(run: () => Promise<AgentRunResult>): AsyncIterable<AgentStreamEvent> {
   const result = await run();
   if (result.contentMd.length > 0) {
     yield { delta: result.contentMd, type: 'content' };
+  }
+  for (const toolCall of result.toolCalls ?? []) {
+    yield { toolCall, type: 'tool_call' };
   }
 }
 
@@ -107,7 +177,7 @@ export function createCopilotCliDriver(options: CliDriverOptions): AgentDriver {
     await runChecked(
       runner,
       command,
-      ['-p', formatPrompt(input), '--deny-tool=shell', '--deny-tool=write'],
+      ['-p', formatPrompt(input), ...copilotNoDirectToolArgs],
       options.workspacePath,
       signal,
     );
@@ -119,7 +189,7 @@ export function createCopilotCliDriver(options: CliDriverOptions): AgentDriver {
         () =>
           runner(
             command,
-            ['-p', 'Reply with exactly: OK', '--deny-tool=shell', '--deny-tool=write'],
+            ['-p', 'Reply with exactly: OK', ...copilotNoDirectToolArgs],
             createCliProcessOptions(options.workspacePath, signal),
           ),
         'Copilot CLI responded successfully.',

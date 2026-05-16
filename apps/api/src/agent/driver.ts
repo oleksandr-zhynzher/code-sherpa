@@ -16,6 +16,12 @@ export type AgentToolCall = Readonly<{
   name: string;
 }>;
 
+export type AgentToolResult = AgentToolCall &
+  Readonly<{
+    resultJson: string;
+    status: 'ok';
+  }>;
+
 export type AgentRunInput = Readonly<{
   prompt: string;
   systemPrompt?: string;
@@ -30,6 +36,7 @@ export type AgentDriverRunInput = AgentRunInput &
 export type AgentRunResult = Readonly<{
   contentMd: string;
   toolCalls?: ReadonlyArray<AgentToolCall>;
+  toolResults?: ReadonlyArray<AgentToolResult>;
 }>;
 
 export type AgentRunFailure = AgentRunResult &

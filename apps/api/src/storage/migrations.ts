@@ -293,12 +293,17 @@ function createAgentSessionSchema(db: DatabaseSync): void {
       system_prompt TEXT,
       response_md TEXT,
       tool_calls_json TEXT NOT NULL DEFAULT '[]',
+      tool_results_json TEXT NOT NULL DEFAULT '[]',
       error_message TEXT,
       duration_ms INTEGER,
       started_at TEXT NOT NULL,
       completed_at TEXT
     );
   `);
+}
+
+function addAgentToolResults(db: DatabaseSync): void {
+  ensureColumn(db, 'agent_session', 'tool_results_json', "TEXT NOT NULL DEFAULT '[]'");
 }
 
 const migrations: ReadonlyArray<Migration> = [
@@ -326,6 +331,11 @@ const migrations: ReadonlyArray<Migration> = [
     name: 'create-agent-session-schema',
     run: createAgentSessionSchema,
     version: 5,
+  },
+  {
+    name: 'add-agent-tool-results',
+    run: addAgentToolResults,
+    version: 6,
   },
 ];
 

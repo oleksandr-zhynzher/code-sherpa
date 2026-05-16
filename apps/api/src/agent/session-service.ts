@@ -8,7 +8,9 @@ import type {
   AgentSessionStore,
   AgentStreamEvent,
   AgentToolCall,
+  AgentToolResult,
 } from './driver.js';
+import type { AgentToolRegistry } from './tool-registry.js';
 
 type AgentOperationOptions = Readonly<{ signal?: AbortSignal; timeoutMs?: number }>;
 
@@ -25,7 +27,10 @@ type AgentSessionServiceOptions = Readonly<{
   driver: AgentDriver;
   now?: () => number;
   store: AgentSessionStore;
+  tools?: AgentToolRegistry | undefined;
 }>;
+
+const maxMediatedToolRounds = 3;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Agent run failed';
@@ -47,8 +52,69 @@ function createSessionStartInput(
       };
 }
 
-function createDriverInput(input: AgentRunInput): AgentDriverRunInput {
-  return { ...input, tools: input.tools ?? [] };
+function createDriverInput(
+  input: AgentRunInput,
+  tools: AgentToolRegistry | undefined,
+): AgentDriverRunInput {
+  return { ...input, tools: input.tools ?? tools?.definitions ?? [] };
+}
+
+async function executeToolCalls(
+  toolCalls: ReadonlyArray<AgentToolCall>,
+  tools: AgentToolRegistry | undefined,
+  results: AgentToolResult[],
+): Promise<void> {
+  if (toolCalls.length === 0) {
+    return;
+  }
+
+  if (tools === undefined) {
+    throw new Error('Agent returned tool calls but no tool registry is configured');
+  }
+
+  for (const call of toolCalls) {
+    results.push(await tools.execute(call));
+  }
+}
+
+function formatToolResultFollowUp(
+  input: AgentRunInput,
+  contentMd: string,
+  toolResults: ReadonlyArray<AgentToolResult>,
+): AgentRunInput {
+  const formattedResults = toolResults
+    .map(
+      (result, index) =>
+        `${index + 1}. ${result.name}(${result.argumentsJson}) => ${result.resultJson}`,
+    )
+    .join('\n');
+
+  return {
+    ...input,
+    prompt: `${input.prompt}
+
+Assistant response so far:
+${contentMd}
+
+Backend-mediated tool results:
+${formattedResults}
+
+Use these backend results to answer the original user prompt. If more backend context is required, emit another CS_TOOL_CALL line.`,
+  };
+}
+
+function createRunResult(
+  contentMd: string,
+  toolCalls: ReadonlyArray<AgentToolCall>,
+  toolResults: ReadonlyArray<AgentToolResult>,
+): AgentRunResult {
+  return toolCalls.length === 0 && toolResults.length === 0
+    ? { contentMd }
+    : {
+        contentMd,
+        toolCalls,
+        toolResults,
+      };
 }
 
 type AbortScope = Readonly<{
@@ -145,10 +211,87 @@ async function nextStreamEvent(
   return scope.race(iterator.next());
 }
 
+async function* streamRoundEvents(
+  iterator: AsyncIterator<AgentStreamEvent>,
+  scope: AbortScope,
+): AsyncIterable<AgentStreamEvent> {
+  while (true) {
+    const next = await nextStreamEvent(iterator, scope);
+    if (next.done === true) {
+      break;
+    }
+
+    yield next.value;
+  }
+}
+
+type StreamMediationState = {
+  completedNaturally: boolean;
+  contentMd: string;
+  iterator: AsyncIterator<AgentStreamEvent> | undefined;
+  toolCalls: AgentToolCall[];
+  toolResults: AgentToolResult[];
+};
+
+function recordStreamEvent(
+  event: AgentStreamEvent,
+  state: StreamMediationState,
+  roundToolCalls: AgentToolCall[],
+): void {
+  if (event.type === 'content') {
+    state.contentMd += event.delta;
+    return;
+  }
+
+  state.toolCalls.push(event.toolCall);
+  roundToolCalls.push(event.toolCall);
+}
+
+async function* streamMediatedRounds(
+  driver: AgentDriver,
+  input: AgentRunInput,
+  tools: AgentToolRegistry | undefined,
+  scope: AbortScope,
+  state: StreamMediationState,
+): AsyncIterable<AgentStreamEvent> {
+  let driverInput = createDriverInput(input, tools);
+
+  for (let round = 0; ; round += 1) {
+    const roundToolCalls: AgentToolCall[] = [];
+    state.completedNaturally = false;
+    state.iterator = driver.stream(driverInput, scope.signal)[Symbol.asyncIterator]();
+    for await (const event of streamRoundEvents(state.iterator, scope)) {
+      recordStreamEvent(event, state, roundToolCalls);
+      yield event;
+    }
+    state.completedNaturally = true;
+
+    if (roundToolCalls.length === 0) {
+      return;
+    }
+
+    if (round >= maxMediatedToolRounds) {
+      throw new Error('Agent exceeded mediated tool round limit');
+    }
+
+    const previousResultCount = state.toolResults.length;
+    await executeToolCalls(roundToolCalls, tools, state.toolResults);
+    driverInput = createDriverInput(
+      formatToolResultFollowUp(
+        input,
+        state.contentMd,
+        state.toolResults.slice(previousResultCount),
+      ),
+      tools,
+    );
+  }
+}
+
 export function createAgentSessionService({
   driver,
   now = Date.now,
   store,
+  tools,
 }: AgentSessionServiceOptions): AgentSessionService {
   return {
     healthCheck: async (options) => {
@@ -170,24 +313,55 @@ export function createAgentSessionService({
       });
       const startedAt = now();
       let sessionId: string | undefined;
+      let failedContentMd = '';
+      const toolCalls: AgentToolCall[] = [];
+      const toolResults: AgentToolResult[] = [];
 
       try {
         sessionId = await store.start(createSessionStartInput(driver, input));
         scope.throwIfAborted();
-        const result = await scope.race(driver.run(createDriverInput(input), scope.signal));
+        let driverInput = createDriverInput(input, tools);
+
+        for (let round = 0; ; round += 1) {
+          const result = await scope.race(driver.run(driverInput, scope.signal));
+          failedContentMd = [failedContentMd, result.contentMd].filter(Boolean).join('\n\n');
+          toolCalls.push(...(result.toolCalls ?? []));
+
+          if ((result.toolCalls ?? []).length === 0) {
+            break;
+          }
+
+          if (round >= maxMediatedToolRounds) {
+            throw new Error('Agent exceeded mediated tool round limit');
+          }
+
+          const previousResultCount = toolResults.length;
+          await executeToolCalls(result.toolCalls ?? [], tools, toolResults);
+          driverInput = createDriverInput(
+            formatToolResultFollowUp(
+              input,
+              failedContentMd,
+              toolResults.slice(previousResultCount),
+            ),
+            tools,
+          );
+        }
+
+        const returnedResult = createRunResult(failedContentMd, toolCalls, toolResults);
         await store.complete(sessionId, {
-          ...result,
+          ...returnedResult,
           durationMs: now() - startedAt,
         });
 
-        return result;
+        return returnedResult;
       } catch (error) {
         if (sessionId !== undefined) {
           await store.fail(sessionId, {
-            contentMd: '',
+            contentMd: failedContentMd,
             durationMs: now() - startedAt,
             errorMessage: errorMessage(error),
-            toolCalls: [],
+            toolCalls,
+            toolResults,
           });
         }
         throw error;
@@ -202,53 +376,45 @@ export function createAgentSessionService({
       });
       const startedAt = now();
       let sessionId: string | undefined;
-      let contentMd = '';
-      const toolCalls: AgentToolCall[] = [];
+      const streamState: StreamMediationState = {
+        completedNaturally: false,
+        contentMd: '',
+        iterator: undefined,
+        toolCalls: [],
+        toolResults: [],
+      };
       let failed = false;
-      let completedNaturally = false;
-      let iterator: AsyncIterator<AgentStreamEvent> | undefined;
 
       try {
         sessionId = await store.start(createSessionStartInput(driver, input));
         scope.throwIfAborted();
-        iterator = driver.stream(createDriverInput(input), scope.signal)[Symbol.asyncIterator]();
-        while (true) {
-          const next = await nextStreamEvent(iterator, scope);
-          if (next.done === true) {
-            completedNaturally = true;
-            break;
-          }
-
-          const event = next.value;
-          if (event.type === 'content') {
-            contentMd += event.delta;
-          } else {
-            toolCalls.push(event.toolCall);
-          }
+        for await (const event of streamMediatedRounds(driver, input, tools, scope, streamState)) {
           yield event;
         }
       } catch (error) {
         failed = true;
         if (sessionId !== undefined) {
           await store.fail(sessionId, {
-            contentMd,
+            contentMd: streamState.contentMd,
             durationMs: now() - startedAt,
             errorMessage: errorMessage(error),
-            toolCalls,
+            toolCalls: streamState.toolCalls,
+            toolResults: streamState.toolResults,
           });
         }
         throw error;
       } finally {
-        if (!completedNaturally) {
+        if (!streamState.completedNaturally) {
           scope.abort();
-          void iterator?.return?.().catch(() => {});
+          void streamState.iterator?.return?.().catch(() => {});
         }
         scope.dispose();
         if (sessionId !== undefined && !failed) {
           await store.complete(sessionId, {
-            contentMd,
+            contentMd: streamState.contentMd,
             durationMs: now() - startedAt,
-            toolCalls,
+            toolCalls: streamState.toolCalls,
+            toolResults: streamState.toolResults,
           });
         }
       }

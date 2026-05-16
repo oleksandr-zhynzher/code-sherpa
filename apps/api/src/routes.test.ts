@@ -244,13 +244,81 @@ describe('POC data API', () => {
         copilotPath,
         [
           '-p',
-          'You are Code Sherpa, a direct DSA tutor. Explain concepts without executing commands or editing files.\n\nHow should I solve two sum?',
+          expect.stringContaining('How should I solve two sum?'),
+          '--available-tools=',
+          '--disable-builtin-mcps',
           '--deny-tool=shell',
           '--deny-tool=write',
         ],
         { cwd: workspacePath, signal: expect.any(AbortSignal) },
       ],
     ]);
+    expect(calls[0][1][1]).toContain('Available backend-mediated tools');
+    expect(calls[0][1][1]).toContain('get_task_context');
+
+    await server.close();
+  });
+
+  it('executes mediated backend tool requests from local CLI output', async () => {
+    let taskId = '';
+    let promptCount = 0;
+    const runner: CliProcessRunner = async () => {
+      promptCount += 1;
+      return {
+        exitCode: 0,
+        stderr: '',
+        stdout:
+          promptCount === 1
+            ? `Need context.\nCS_TOOL_CALL: {"name":"get_task_context","arguments":{"taskId":"${taskId}"}}\n`
+            : 'Use a hash map.',
+      };
+    };
+    const server = await buildServer({
+      agentProcessRunner: runner,
+      dbPath: ':memory:',
+      logger: false,
+      workspacePath,
+    });
+
+    await server.inject({
+      method: 'POST',
+      payload: {
+        agentDriver: 'copilot',
+        copilotPath,
+        exerciseLanguage: 'python',
+        guideTone: 'direct',
+        safeRunChecks: true,
+      },
+      url: setupUrl,
+    });
+    const planResponse = await server.inject({
+      method: 'POST',
+      payload: { goal: 'arrays and hash maps' },
+      url: plansUrl,
+    });
+    taskId = planResponse.json().topics[0].tasks[0].id;
+
+    const response = await server.inject({
+      method: 'POST',
+      payload: {
+        prompt: 'Use app context.',
+      },
+      url: '/api/agent/run',
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().result).toMatchObject({
+      contentMd: 'Need context.\n\nUse a hash map.',
+      toolCalls: [{ argumentsJson: `{"taskId":"${taskId}"}`, name: 'get_task_context' }],
+      toolResults: [
+        {
+          argumentsJson: `{"taskId":"${taskId}"}`,
+          name: 'get_task_context',
+          resultJson: expect.stringContaining(taskId),
+          status: 'ok',
+        },
+      ],
+    });
 
     await server.close();
   });

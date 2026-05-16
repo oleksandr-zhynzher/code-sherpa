@@ -6,6 +6,7 @@ import type {
   AgentSessionStartInput,
   AgentSessionStore,
   AgentToolCall,
+  AgentToolResult,
 } from '../agent/driver.js';
 
 export type AgentSessionStatus = 'completed' | 'failed' | 'running';
@@ -22,6 +23,7 @@ export type AgentSessionRecord = Readonly<{
   status: AgentSessionStatus;
   systemPrompt: string | null;
   toolCalls: ReadonlyArray<AgentToolCall>;
+  toolResults: ReadonlyArray<AgentToolResult>;
 }>;
 
 type AgentSessionRow = Readonly<{
@@ -36,6 +38,7 @@ type AgentSessionRow = Readonly<{
   status: AgentSessionStatus;
   system_prompt: string | null;
   tool_calls_json: string;
+  tool_results_json: string;
 }>;
 
 export type AgentSessionRepository = AgentSessionStore &
@@ -59,6 +62,18 @@ function parseToolCalls(json: string, sessionId: string): ReadonlyArray<AgentToo
   }
 }
 
+function parseToolResults(json: string, sessionId: string): ReadonlyArray<AgentToolResult> {
+  try {
+    return JSON.parse(json) as ReadonlyArray<AgentToolResult>;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(`Agent session ${sessionId} has corrupted tool result data`);
+    }
+
+    throw error;
+  }
+}
+
 function mapAgentSession(row: AgentSessionRow): AgentSessionRecord {
   return {
     completedAt: row.completed_at,
@@ -72,6 +87,7 @@ function mapAgentSession(row: AgentSessionRow): AgentSessionRecord {
     status: row.status,
     systemPrompt: row.system_prompt,
     toolCalls: parseToolCalls(row.tool_calls_json, row.id),
+    toolResults: parseToolResults(row.tool_results_json, row.id),
   };
 }
 
@@ -91,6 +107,7 @@ export function createAgentSessionRepository(db: DatabaseSync): AgentSessionRepo
         SET status = 'completed',
           response_md = ?,
           tool_calls_json = ?,
+          tool_results_json = ?,
           duration_ms = ?,
           completed_at = ?
         WHERE id = ?
@@ -99,6 +116,7 @@ export function createAgentSessionRepository(db: DatabaseSync): AgentSessionRepo
         .run(
           result.contentMd,
           JSON.stringify(result.toolCalls ?? []),
+          JSON.stringify(result.toolResults ?? []),
           result.durationMs,
           nowIso(),
           id,
@@ -113,6 +131,7 @@ export function createAgentSessionRepository(db: DatabaseSync): AgentSessionRepo
         SET status = 'failed',
           response_md = ?,
           tool_calls_json = ?,
+          tool_results_json = ?,
           error_message = ?,
           duration_ms = ?,
           completed_at = ?
@@ -122,6 +141,7 @@ export function createAgentSessionRepository(db: DatabaseSync): AgentSessionRepo
         .run(
           result.contentMd,
           JSON.stringify(result.toolCalls ?? []),
+          JSON.stringify(result.toolResults ?? []),
           result.errorMessage,
           result.durationMs,
           nowIso(),

@@ -5,6 +5,10 @@ import { describe, expect, it } from 'vitest';
 import { createAgentSessionRepository } from './agent-session-repository.js';
 import { runMigrations } from './migrations.js';
 
+const createQuizToolName = 'create_quiz';
+const queuesToolArgsJson = '{"topic":"queues"}';
+const stacksToolArgsJson = '{"topic":"stacks"}';
+
 describe('AgentSessionRepository', () => {
   it('persists completed and failed agent sessions', async () => {
     const db = new DatabaseSync(':memory:');
@@ -19,7 +23,15 @@ describe('AgentSessionRepository', () => {
     await repository.complete(completedId, {
       contentMd: 'Queues are FIFO.',
       durationMs: 42,
-      toolCalls: [{ argumentsJson: '{"topic":"queues"}', name: 'create_quiz' }],
+      toolCalls: [{ argumentsJson: queuesToolArgsJson, name: createQuizToolName }],
+      toolResults: [
+        {
+          argumentsJson: queuesToolArgsJson,
+          name: createQuizToolName,
+          resultJson: '{"quizId":"quiz-1"}',
+          status: 'ok',
+        },
+      ],
     });
 
     expect(repository.get(completedId)).toMatchObject({
@@ -28,7 +40,15 @@ describe('AgentSessionRepository', () => {
       responseMd: 'Queues are FIFO.',
       status: 'completed',
       systemPrompt: 'You are a tutor',
-      toolCalls: [{ argumentsJson: '{"topic":"queues"}', name: 'create_quiz' }],
+      toolCalls: [{ argumentsJson: queuesToolArgsJson, name: createQuizToolName }],
+      toolResults: [
+        {
+          argumentsJson: queuesToolArgsJson,
+          name: createQuizToolName,
+          resultJson: '{"quizId":"quiz-1"}',
+          status: 'ok',
+        },
+      ],
     });
 
     const failedId = await repository.start({
@@ -39,14 +59,30 @@ describe('AgentSessionRepository', () => {
       contentMd: 'Partial answer',
       durationMs: 5,
       errorMessage: 'CLI is not authenticated',
-      toolCalls: [{ argumentsJson: '{"topic":"stacks"}', name: 'create_quiz' }],
+      toolCalls: [{ argumentsJson: stacksToolArgsJson, name: createQuizToolName }],
+      toolResults: [
+        {
+          argumentsJson: stacksToolArgsJson,
+          name: createQuizToolName,
+          resultJson: '{"quizId":"quiz-2"}',
+          status: 'ok',
+        },
+      ],
     });
 
     expect(repository.get(failedId)).toMatchObject({
       errorMessage: 'CLI is not authenticated',
       responseMd: 'Partial answer',
       status: 'failed',
-      toolCalls: [{ argumentsJson: '{"topic":"stacks"}', name: 'create_quiz' }],
+      toolCalls: [{ argumentsJson: stacksToolArgsJson, name: createQuizToolName }],
+      toolResults: [
+        {
+          argumentsJson: stacksToolArgsJson,
+          name: createQuizToolName,
+          resultJson: '{"quizId":"quiz-2"}',
+          status: 'ok',
+        },
+      ],
     });
 
     await expect(
@@ -59,6 +95,13 @@ describe('AgentSessionRepository', () => {
     );
     expect(() => repository.get(completedId)).toThrow(
       `Agent session ${completedId} has corrupted tool call data`,
+    );
+
+    db.prepare(
+      'UPDATE agent_session SET tool_calls_json = ?, tool_results_json = ? WHERE id = ?',
+    ).run('[]', 'not-json', completedId);
+    expect(() => repository.get(completedId)).toThrow(
+      `Agent session ${completedId} has corrupted tool result data`,
     );
 
     db.close();

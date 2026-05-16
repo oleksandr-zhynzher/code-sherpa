@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { ZodError } from 'zod';
 
+import { createAppAgentToolRegistry } from './agent/app-tools.js';
 import { createAgentDriverForSetup } from './agent/cli-driver.js';
 import { answerTaskQuestion, explainTopic } from './agent/poc-agent.js';
 import { createAgentSessionService } from './agent/session-service.js';
@@ -42,6 +43,7 @@ function createConfiguredAgentService(server: FastifyInstance) {
     service: createAgentSessionService({
       driver,
       store: server.codeSherpa.db.agentSessions,
+      tools: createAppAgentToolRegistry(server.codeSherpa.db),
     }),
     setup,
   };

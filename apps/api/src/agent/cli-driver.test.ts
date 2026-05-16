@@ -11,6 +11,8 @@ import {
 const workspacePath = '/tmp/code-sherpa-workspace';
 const claudePath = '/opt/bin/claude';
 const copilotPath = '/opt/bin/copilot';
+const runTestsToolName = 'run_tests';
+const useToolPrompt = 'Use a tool';
 
 function createSetup(agentDriver: SetupState['agentDriver']): SetupState {
   return {
@@ -52,6 +54,8 @@ describe('CLI agent drivers', () => {
         [
           '-p',
           'You are a concise tutor.\n\nExplain binary search',
+          '--available-tools=',
+          '--disable-builtin-mcps',
           '--deny-tool=shell',
           '--deny-tool=write',
         ],
@@ -131,19 +135,78 @@ describe('CLI agent drivers', () => {
     expect(invocations[0][0]).toBe('copilot');
   });
 
-  it('rejects direct CLI tool requests until backend mediation is implemented', async () => {
+  it('parses backend-mediated tool requests from CLI output', async () => {
+    const invocations: Array<Parameters<CliProcessRunner>> = [];
     const driver = createCopilotCliDriver({
       executablePath: copilotPath,
-      runner: async () => ({ exitCode: 0, stderr: '', stdout: 'OK' }),
+      runner: async (...input) => {
+        invocations.push(input);
+        return {
+          exitCode: 0,
+          stderr: '',
+          stdout:
+            'I need context.\nCS_TOOL_CALL: {"name":"run_tests","arguments":{"taskId":"task-1"}}\n',
+        };
+      },
       workspacePath,
     });
 
-    await expect(
-      driver.run({
-        prompt: 'Use a tool',
-        tools: [{ description: 'Runs tests', name: 'run_tests', parametersJsonSchema: '{}' }],
+    const result = await driver.run({
+      prompt: useToolPrompt,
+      tools: [{ description: 'Runs tests', name: runTestsToolName, parametersJsonSchema: '{}' }],
+    });
+
+    expect(result).toEqual({
+      contentMd: 'I need context.',
+      toolCalls: [{ argumentsJson: '{"taskId":"task-1"}', name: runTestsToolName }],
+    });
+    expect(invocations[0][1][1]).toContain('Available backend-mediated tools');
+    expect(invocations[0][1][1]).toContain(runTestsToolName);
+  });
+
+  it('streams backend-mediated tool requests from CLI output', async () => {
+    const driver = createCopilotCliDriver({
+      executablePath: copilotPath,
+      runner: async () => ({
+        exitCode: 0,
+        stderr: '',
+        stdout:
+          'I need context.\nCS_TOOL_CALL: {"name":"run_tests","arguments":{"taskId":"task-1"}}\n',
       }),
-    ).rejects.toThrow('CLI tool mediation is not enabled yet');
+      workspacePath,
+    });
+
+    const events = [];
+    for await (const event of driver.stream({
+      prompt: useToolPrompt,
+      tools: [{ description: 'Runs tests', name: runTestsToolName, parametersJsonSchema: '{}' }],
+    })) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      { delta: 'I need context.', type: 'content' },
+      {
+        toolCall: { argumentsJson: '{"taskId":"task-1"}', name: runTestsToolName },
+        type: 'tool_call',
+      },
+    ]);
+  });
+
+  it('rejects malformed backend-mediated tool request JSON', async () => {
+    const driver = createCopilotCliDriver({
+      executablePath: copilotPath,
+      runner: async () => ({
+        exitCode: 0,
+        stderr: '',
+        stdout: 'CS_TOOL_CALL: {"name":',
+      }),
+      workspacePath,
+    });
+
+    await expect(driver.run({ prompt: useToolPrompt, tools: [] })).rejects.toThrow(
+      'CLI returned an invalid mediated tool call',
+    );
   });
 
   it('reports failed CLI health checks without throwing', async () => {

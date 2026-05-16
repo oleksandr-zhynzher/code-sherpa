@@ -31,6 +31,7 @@ import {
   commitTask,
   getWorkspaceStatus,
   linkWorkspaceRepository,
+  pushWorkspace,
   readTaskFiles,
   runTaskTests,
   scaffoldTask,
@@ -198,6 +199,12 @@ export function registerRoutes(server: FastifyInstance): void {
       setup,
       status,
     });
+  });
+
+  server.post('/api/git/push', async () => {
+    const workspacePath = await getConfiguredWorkspacePath(server);
+
+    return { result: await pushWorkspace(workspacePath) };
   });
 
   server.get('/api/plans', async () => ({

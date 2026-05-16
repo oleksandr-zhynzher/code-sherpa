@@ -106,6 +106,10 @@ export const api = {
       body: JSON.stringify(input),
       method: 'POST',
     }),
+  pushWorkspace: () =>
+    request<Readonly<{ result: Readonly<{ output: string }> }>>('/api/git/push', {
+      method: 'POST',
+    }),
   saveSolution: (taskId: string, content: string) =>
     request<Readonly<{ files: TaskFiles; task: Task }>>(`/api/tasks/${taskId}/solution`, {
       body: JSON.stringify({ content }),

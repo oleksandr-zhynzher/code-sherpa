@@ -472,3 +472,22 @@ export async function commitTask(
     throw error;
   }
 }
+
+export async function pushWorkspace(workspaceRoot: string): Promise<Readonly<{ output: string }>> {
+  try {
+    // eslint-disable-next-line security/detect-child-process -- Git push is scoped to the configured local workspace repository.
+    const result = await execFileAsync('git', ['push'], {
+      cwd: workspaceRoot,
+      timeout: 30_000,
+    });
+
+    return { output: `${result.stdout}${result.stderr}` };
+  } catch (error) {
+    if (typeof error === 'object' && error !== null && 'stderr' in error) {
+      const failed = error as Readonly<{ stderr: string; stdout?: string }>;
+      throw new ConflictError(`${failed.stdout ?? ''}${failed.stderr}`.trim());
+    }
+
+    throw error;
+  }
+}

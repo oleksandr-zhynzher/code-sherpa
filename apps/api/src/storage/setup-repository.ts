@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
+import { normalizeGitHubRepoUrl } from '../domain/repo-url.js';
 import type { SetupState } from '../domain/types.js';
 
 type SettingsRow = Readonly<{
@@ -24,7 +25,7 @@ export type SetupRepository = Readonly<{
       copilotPath?: string | undefined;
       exerciseLanguage: SetupState['exerciseLanguage'];
       guideTone: SetupState['guideTone'];
-      repoUrl?: string | undefined;
+      repoUrl?: string | null | undefined;
       safeRunChecks: boolean;
       workspacePath: string;
     }>,
@@ -43,7 +44,10 @@ function mapSetup(row: SettingsRow | undefined, workspacePath: string): SetupSta
     copilotPath: row?.copilot_path ?? null,
     exerciseLanguage: row?.exercise_language ?? 'python',
     guideTone: row?.guide_tone ?? 'encouraging',
-    repoUrl: row?.repo_url ?? null,
+    repoUrl:
+      row?.repo_url === undefined || row.repo_url === null
+        ? null
+        : normalizeGitHubRepoUrl(row.repo_url),
     safeRunChecks: row?.safe_run_checks === undefined ? true : row.safe_run_checks === 1,
     workspacePath: row?.workspace_path ?? workspacePath,
   };

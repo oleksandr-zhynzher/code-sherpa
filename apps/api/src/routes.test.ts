@@ -1,3 +1,7 @@
+import { mkdtemp, realpath, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { basename, dirname, join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import type { CliProcessRunner } from './agent/cli-driver.js';
@@ -6,9 +10,11 @@ import { buildServer } from './server.js';
 const plansUrl = '/api/plans';
 const setupUrl = '/api/setup';
 const agentRunUrl = '/api/agent/run';
+const repoLinkUrl = '/api/repo/link';
 const workspacePath = '/tmp/code-sherpa-workspace';
 const claudePath = '/opt/bin/claude';
 const copilotPath = '/opt/bin/copilot';
+const repoUrl = 'git@github.com:example/algorithms.git';
 const agentPlanTitle = 'Graphs and Dynamic Programming Path';
 const agentPlanJson = JSON.stringify({
   title: agentPlanTitle,
@@ -56,6 +62,10 @@ const longAgentPlanJson = JSON.stringify({
     },
   ],
 });
+
+async function canonicalWorkspacePath(path: string): Promise<string> {
+  return join(await realpath(dirname(path)), basename(path));
+}
 
 describe('POC data API', () => {
   it('creates and returns a learning plan with topics and tasks', async () => {
@@ -198,6 +208,20 @@ describe('POC data API', () => {
     await server.close();
   });
 
+  it('returns a canonical absolute workspace path from GET /api/setup with no saved row', async () => {
+    const server = await buildServer({ dbPath: ':memory:', logger: false });
+
+    const response = await server.inject({ method: 'GET', url: setupUrl });
+
+    expect(response.statusCode).toBe(200);
+    const returnedPath = response.json().workspacePath as string;
+    expect(returnedPath).toBeTruthy();
+    expect(returnedPath.startsWith('/')).toBe(true);
+    expect(returnedPath).not.toBe('./workspace');
+
+    await server.close();
+  });
+
   it('saves setup settings without exposing secrets', async () => {
     const server = await buildServer({
       dbPath: ':memory:',
@@ -215,7 +239,7 @@ describe('POC data API', () => {
         guideTone: 'encouraging',
         safeRunChecks: true,
         autoSaveProgress: false,
-        repoUrl: 'git@github.com:example/algorithms.git',
+        repoUrl,
       },
       url: setupUrl,
     });
@@ -228,9 +252,9 @@ describe('POC data API', () => {
       copilotPath: '/usr/local/bin/copilot',
       exerciseLanguage: 'typescript',
       guideTone: 'encouraging',
-      repoUrl: 'git@github.com:example/algorithms.git',
+      repoUrl,
       safeRunChecks: true,
-      workspacePath,
+      workspacePath: await canonicalWorkspacePath(workspacePath),
     });
 
     await server.close();
@@ -261,6 +285,101 @@ describe('POC data API', () => {
     expect(response.json().copilotPath).toBeNull();
 
     await server.close();
+  });
+
+  it('links a local workspace folder and reports git repository status', async () => {
+    const workspaceBasePath = await mkdtemp(join(tmpdir(), 'code-sherpa-base-'));
+    const linkedWorkspace = join(workspaceBasePath, 'linked-workspace');
+    const server = await buildServer({
+      dbPath: ':memory:',
+      logger: false,
+      workspaceBasePath,
+      workspacePath: join(workspaceBasePath, 'workspace'),
+    });
+
+    const missingStatusResponse = await server.inject({
+      method: 'GET',
+      url: '/api/repo/status',
+    });
+    expect(missingStatusResponse.statusCode).toBe(200);
+    expect(missingStatusResponse.json().status.exists).toBe(false);
+
+    const linkResponse = await server.inject({
+      method: 'POST',
+      payload: {
+        repoUrl: null,
+        workspacePath: linkedWorkspace,
+      },
+      url: repoLinkUrl,
+    });
+
+    expect(linkResponse.statusCode).toBe(200);
+    const normalizedLinkedWorkspace = await realpath(linkedWorkspace);
+    expect(linkResponse.json().setup.workspacePath).toBe(normalizedLinkedWorkspace);
+    expect(linkResponse.json().status).toMatchObject({
+      exists: true,
+      isGitRepository: true,
+      ok: true,
+      remoteUrl: null,
+    });
+
+    const savedSetupResponse = await server.inject({
+      method: 'GET',
+      url: setupUrl,
+    });
+    expect(savedSetupResponse.json().workspacePath).toBe(normalizedLinkedWorkspace);
+
+    await server.close();
+    await rm(workspaceBasePath, { force: true, recursive: true });
+  });
+
+  it('rejects unsafe repository URLs when linking a workspace', async () => {
+    const linkedWorkspace = await mkdtemp(join(tmpdir(), 'code-sherpa-linked-workspace-'));
+    const server = await buildServer({
+      dbPath: ':memory:',
+      logger: false,
+      workspacePath,
+    });
+
+    const response = await server.inject({
+      method: 'POST',
+      payload: {
+        repoUrl: 'file:///tmp/repo.git',
+        workspacePath: linkedWorkspace,
+      },
+      url: repoLinkUrl,
+    });
+
+    expect(response.statusCode).toBe(422);
+
+    await server.close();
+    await rm(linkedWorkspace, { force: true, recursive: true });
+  });
+
+  it('rejects workspace folders outside the configured workspace base', async () => {
+    const workspaceBasePath = await mkdtemp(join(tmpdir(), 'code-sherpa-base-'));
+    const outsideWorkspace = await mkdtemp(join(tmpdir(), 'code-sherpa-outside-workspace-'));
+    const server = await buildServer({
+      dbPath: ':memory:',
+      logger: false,
+      workspaceBasePath,
+      workspacePath: join(workspaceBasePath, 'workspace'),
+    });
+
+    const response = await server.inject({
+      method: 'POST',
+      payload: {
+        repoUrl: null,
+        workspacePath: outsideWorkspace,
+      },
+      url: repoLinkUrl,
+    });
+
+    expect(response.statusCode).toBe(409);
+
+    await server.close();
+    await rm(workspaceBasePath, { force: true, recursive: true });
+    await rm(outsideWorkspace, { force: true, recursive: true });
   });
 
   it('checks the selected local CLI agent from setup settings', async () => {
@@ -298,7 +417,11 @@ describe('POC data API', () => {
       health: { message: 'Claude CLI is authenticated.', ok: true },
     });
     expect(calls).toEqual([
-      [claudePath, ['auth', 'status'], { cwd: workspacePath, signal: expect.any(AbortSignal) }],
+      [
+        claudePath,
+        ['auth', 'status'],
+        { cwd: await canonicalWorkspacePath(workspacePath), signal: expect.any(AbortSignal) },
+      ],
     ]);
 
     await server.close();
@@ -352,7 +475,7 @@ describe('POC data API', () => {
           '--deny-tool=shell',
           '--deny-tool=write',
         ],
-        { cwd: workspacePath, signal: expect.any(AbortSignal) },
+        { cwd: await canonicalWorkspacePath(workspacePath), signal: expect.any(AbortSignal) },
       ],
     ]);
     expect(calls[0][1][1]).toContain('Available backend-mediated tools');

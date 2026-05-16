@@ -26,6 +26,8 @@ describe('SetupConfiguration', () => {
     expect(markup).toContain('Agent runtime');
     expect(markup).toContain('/usr/local/bin/copilot');
     expect(markup).toContain('Connect Your Practice Folder');
+    expect(markup).toContain('Local folder');
+    expect(markup).toContain('./workspace');
     expect(markup).toContain('git@github.com:me/algos-journal.git');
     expect(markup).toContain('Your Preferences');
     expect(markup).toContain('Exercise Language');

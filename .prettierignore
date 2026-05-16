@@ -5,6 +5,6 @@ dist/
 .github/
 apps/web/next-env.d.ts
 coverage/
-workspace/
+/workspace/
 .code-sherpa/
 package-lock.json

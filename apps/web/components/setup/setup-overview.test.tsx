@@ -42,6 +42,7 @@ describe('SetupOverview', () => {
           ...baseSetup,
           claudePath: null,
           repoUrl: null,
+          workspacePath: '',
         }}
       />,
     );

@@ -72,6 +72,17 @@ export type SetupState = Readonly<{
   workspacePath: string;
 }>;
 
+export type WorkspaceStatus = Readonly<{
+  branch: string | null;
+  exists: boolean;
+  hasUncommittedChanges: boolean;
+  isGitRepository: boolean;
+  message: string;
+  ok: boolean;
+  remoteUrl: string | null;
+  workspacePath: string;
+}>;
+
 export type TaskFiles = Readonly<{
   solution: string;
   test: string;

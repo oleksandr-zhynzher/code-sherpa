@@ -33,7 +33,7 @@ export function SetupConfiguration({
   };
 
   const updateText =
-    (key: 'claudePath' | 'copilotPath' | 'repoUrl') =>
+    (key: 'claudePath' | 'copilotPath' | 'repoUrl' | 'workspacePath') =>
     (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       onChange(updateDraft(draft, key, event.target.value));
     };
@@ -89,13 +89,20 @@ export function SetupConfiguration({
           <p>Choose where your work and progress are saved.</p>
         </div>
         <TextField
+          id="workspace-path"
+          label="Local folder"
+          onChange={updateText('workspacePath')}
+          placeholder="/Users/me/code-sherpa-workspace"
+          value={draft.workspacePath}
+        />
+        <TextField
           id="repo-url"
           label="GitHub Repository"
           onChange={updateText('repoUrl')}
           placeholder="git@github.com:me/algos-journal.git"
           value={draft.repoUrl ?? ''}
         />
-        <p className="setup-card__hint">Workspace: {draft.workspacePath}</p>
+        <p className="setup-card__hint">Leave the repository blank to use the local folder only.</p>
       </section>
 
       <section className="setup-config__panel" id="preferences">

@@ -146,7 +146,7 @@ export type CodeSherpaDatabase = Readonly<{
       copilotPath?: string | undefined;
       exerciseLanguage: SetupState['exerciseLanguage'];
       guideTone: SetupState['guideTone'];
-      repoUrl?: string | undefined;
+      repoUrl?: string | null | undefined;
       safeRunChecks: boolean;
       workspacePath: string;
     }>,

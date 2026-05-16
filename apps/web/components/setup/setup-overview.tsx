@@ -18,8 +18,9 @@ export function SetupOverview({
   isLoading = false,
   setup,
 }: SetupOverviewProps): ReactNode {
-  const assistantReady = hasValue(setup?.claudePath);
-  const folderReady = hasValue(setup?.repoUrl);
+  const assistantPath = setup?.agentDriver === 'claude' ? setup.claudePath : setup?.copilotPath;
+  const assistantReady = hasValue(assistantPath);
+  const folderReady = hasValue(setup?.workspacePath);
   const setupReady = assistantReady && folderReady && !isLoading && error === null;
 
   return (
@@ -60,7 +61,7 @@ export function SetupOverview({
             </a>
           </div>
           {assistantReady ? (
-            <p className="setup-card__hint">{setup?.claudePath}</p>
+            <p className="setup-card__hint">{assistantPath}</p>
           ) : (
             <p className="setup-card__error">
               We couldn&apos;t reach your guide — check your CLI path or try again.
@@ -78,7 +79,7 @@ export function SetupOverview({
             </a>
           </div>
           {folderReady ? (
-            <p className="setup-card__hint">{setup?.repoUrl}</p>
+            <p className="setup-card__hint">{setup?.repoUrl ?? setup?.workspacePath}</p>
           ) : (
             <p className="setup-card__error">Your practice folder is not connected yet.</p>
           )}

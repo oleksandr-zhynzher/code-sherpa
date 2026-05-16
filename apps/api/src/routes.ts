@@ -17,6 +17,7 @@ import {
   createLearningPathSchema,
   idParamsSchema,
   progressListQuerySchema,
+  repoLinkSchema,
   setupSchema,
   solutionUpdateSchema,
 } from './http/contracts.js';
@@ -28,18 +29,36 @@ import {
 } from './http/errors.js';
 import {
   commitTask,
+  getWorkspaceStatus,
+  linkWorkspaceRepository,
   readTaskFiles,
   runTaskTests,
   scaffoldTask,
+  validateWorkspaceRoot,
   writeSolution,
 } from './workspace/workspace.js';
 
-function createConfiguredAgentService(server: FastifyInstance) {
-  const setup = server.codeSherpa.db.getSetup(server.codeSherpa.workspacePath);
+function getConfiguredSetup(server: FastifyInstance) {
+  return server.codeSherpa.db.getSetup(server.codeSherpa.workspacePath);
+}
+
+async function getConfiguredWorkspacePath(server: FastifyInstance): Promise<string> {
+  return validateWorkspaceRoot(
+    getConfiguredSetup(server).workspacePath,
+    server.codeSherpa.workspaceBasePath,
+  );
+}
+
+async function createConfiguredAgentService(server: FastifyInstance) {
+  const setup = getConfiguredSetup(server);
+  const workspacePath = await validateWorkspaceRoot(
+    setup.workspacePath,
+    server.codeSherpa.workspaceBasePath,
+  );
   const driver = createAgentDriverForSetup({
     runner: server.codeSherpa.agentProcessRunner,
     setup,
-    workspacePath: server.codeSherpa.workspacePath,
+    workspacePath,
   });
 
   return {
@@ -71,9 +90,14 @@ export function registerRoutes(server: FastifyInstance): void {
     return reply.status(500).send(errorResponse('INTERNAL_ERROR', 'Unexpected server error'));
   });
 
-  server.get('/api/setup', async () =>
-    server.codeSherpa.db.getSetup(server.codeSherpa.workspacePath),
-  );
+  server.get('/api/setup', async () => {
+    const setup = getConfiguredSetup(server);
+    const workspacePath = await validateWorkspaceRoot(
+      setup.workspacePath,
+      server.codeSherpa.workspaceBasePath,
+    );
+    return { ...setup, workspacePath };
+  });
 
   server.get('/api/resume', async () => server.codeSherpa.db.getResumeState());
 
@@ -86,7 +110,7 @@ export function registerRoutes(server: FastifyInstance): void {
   });
 
   server.get('/api/agent/health', async () => {
-    const agent = createConfiguredAgentService(server);
+    const agent = await createConfiguredAgentService(server);
     const health = await agent.service.healthCheck({ timeoutMs: 30_000 });
 
     return {
@@ -97,7 +121,7 @@ export function registerRoutes(server: FastifyInstance): void {
 
   server.post('/api/agent/run', async (request, reply) => {
     const input = agentRunRequestSchema.parse(request.body);
-    const agent = createConfiguredAgentService(server);
+    const agent = await createConfiguredAgentService(server);
     const result = await agent.service.run(
       {
         prompt: input.prompt,
@@ -114,6 +138,11 @@ export function registerRoutes(server: FastifyInstance): void {
 
   server.post('/api/setup', async (request, reply) => {
     const input = setupSchema.parse(request.body);
+    const currentSetup = getConfiguredSetup(server);
+    const workspacePath = await validateWorkspaceRoot(
+      input.workspacePath ?? currentSetup.workspacePath,
+      server.codeSherpa.workspaceBasePath,
+    );
     const setup = server.codeSherpa.db.saveSetup({
       agentDriver: input.agentDriver,
       autoSaveProgress: input.autoSaveProgress,
@@ -123,10 +152,52 @@ export function registerRoutes(server: FastifyInstance): void {
       guideTone: input.guideTone,
       repoUrl: input.repoUrl,
       safeRunChecks: input.safeRunChecks,
-      workspacePath: server.codeSherpa.workspacePath,
+      workspacePath,
     });
 
     return reply.status(200).send(setup);
+  });
+
+  server.get('/api/repo/status', async () => {
+    const setup = getConfiguredSetup(server);
+    const workspacePath = await validateWorkspaceRoot(
+      setup.workspacePath,
+      server.codeSherpa.workspaceBasePath,
+    );
+    const status = await getWorkspaceStatus(workspacePath);
+
+    return {
+      repoUrl: setup.repoUrl,
+      status,
+    };
+  });
+
+  server.post('/api/repo/link', async (request, reply) => {
+    const input = repoLinkSchema.parse(request.body);
+    const currentSetup = getConfiguredSetup(server);
+    const workspacePath = input.workspacePath ?? currentSetup.workspacePath;
+    const repoUrl = input.repoUrl ?? null;
+    const status = await linkWorkspaceRepository(
+      workspacePath,
+      repoUrl,
+      server.codeSherpa.workspaceBasePath,
+    );
+    const setup = server.codeSherpa.db.saveSetup({
+      agentDriver: currentSetup.agentDriver,
+      autoSaveProgress: currentSetup.autoSaveProgress,
+      claudePath: currentSetup.claudePath ?? undefined,
+      copilotPath: currentSetup.copilotPath ?? undefined,
+      exerciseLanguage: currentSetup.exerciseLanguage,
+      guideTone: currentSetup.guideTone,
+      repoUrl: repoUrl ?? undefined,
+      safeRunChecks: currentSetup.safeRunChecks,
+      workspacePath: status.workspacePath,
+    });
+
+    return reply.status(200).send({
+      setup,
+      status,
+    });
   });
 
   server.get('/api/plans', async () => ({
@@ -135,7 +206,7 @@ export function registerRoutes(server: FastifyInstance): void {
 
   server.post('/api/plans', async (request, reply) => {
     const input = createLearningPathSchema.parse(request.body);
-    const agent = createConfiguredAgentService(server);
+    const agent = await createConfiguredAgentService(server);
     const draft = await generateLearningPathDraftWithAgent({
       goal: input.goal,
       service: agent.service,
@@ -157,7 +228,7 @@ export function registerRoutes(server: FastifyInstance): void {
 
   server.post('/api/paths', async (request, reply) => {
     const input = createLearningPathSchema.parse(request.body);
-    const agent = createConfiguredAgentService(server);
+    const agent = await createConfiguredAgentService(server);
     const draft = await generateLearningPathDraftWithAgent({
       goal: input.goal,
       service: agent.service,
@@ -186,7 +257,7 @@ export function registerRoutes(server: FastifyInstance): void {
   server.post('/api/topics/:id/explain', async (request) => {
     const params = idParamsSchema.parse(request.params);
     const topic = server.codeSherpa.db.getTopic(params.id);
-    const agent = createConfiguredAgentService(server);
+    const agent = await createConfiguredAgentService(server);
     const explanation = await generateTopicExplanationWithAgent({
       service: agent.service,
       setup: agent.setup,
@@ -199,7 +270,7 @@ export function registerRoutes(server: FastifyInstance): void {
   server.post('/api/tasks/:id/scaffold', async (request, reply) => {
     const params = idParamsSchema.parse(request.params);
     const context = server.codeSherpa.db.getTaskContext(params.id);
-    const scaffold = await scaffoldTask(server.codeSherpa.workspacePath, context);
+    const scaffold = await scaffoldTask(await getConfiguredWorkspacePath(server), context);
     const task = server.codeSherpa.db.updateTaskFiles(
       params.id,
       scaffold.solutionPath,
@@ -217,7 +288,7 @@ export function registerRoutes(server: FastifyInstance): void {
     const task = server.codeSherpa.db.getTask(params.id);
 
     return {
-      files: await readTaskFiles(server.codeSherpa.workspacePath, task),
+      files: await readTaskFiles(await getConfiguredWorkspacePath(server), task),
       task,
     };
   });
@@ -228,7 +299,7 @@ export function registerRoutes(server: FastifyInstance): void {
     const task = server.codeSherpa.db.getTask(params.id);
 
     return {
-      files: await writeSolution(server.codeSherpa.workspacePath, task, input.content),
+      files: await writeSolution(await getConfiguredWorkspacePath(server), task, input.content),
       task,
     };
   });
@@ -236,7 +307,7 @@ export function registerRoutes(server: FastifyInstance): void {
   server.post('/api/tasks/:id/run', async (request) => {
     const params = idParamsSchema.parse(request.params);
     const task = server.codeSherpa.db.getTask(params.id);
-    const result = await runTaskTests(server.codeSherpa.workspacePath, task);
+    const result = await runTaskTests(await getConfiguredWorkspacePath(server), task);
     const updatedTask = server.codeSherpa.db.recordTaskRun(params.id, result.passed);
 
     return {
@@ -250,7 +321,7 @@ export function registerRoutes(server: FastifyInstance): void {
     const input = commitTaskSchema.parse(request.body);
     const task = server.codeSherpa.db.getTask(params.id);
     const message = input.message ?? `feat(${task.slug}): solve ${task.title}`;
-    const result = await commitTask(server.codeSherpa.workspacePath, task, message);
+    const result = await commitTask(await getConfiguredWorkspacePath(server), task, message);
     const updatedTask = server.codeSherpa.db.markTaskDone(params.id);
 
     return {
@@ -277,7 +348,7 @@ export function registerRoutes(server: FastifyInstance): void {
       role: 'user',
       taskId: params.id,
     });
-    const agent = createConfiguredAgentService(server);
+    const agent = await createConfiguredAgentService(server);
     const answer = await answerTaskChatWithAgent({
       message: input.message,
       service: agent.service,

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { isAllowedGitHubRepoUrl } from '../domain/repo-url.js';
+
 export const createLearningPathSchema = z.object({
   goal: z.string().trim().min(3).max(500),
 });
@@ -21,6 +23,19 @@ const optionalCliPathSchema = z
   .transform((value) => (value.length === 0 ? undefined : value))
   .optional();
 
+const optionalWorkspacePathSchema = z.string().trim().min(1).max(500).optional();
+
+const repoUrlValueSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((value) => value.length === 0 || isAllowedGitHubRepoUrl(value), {
+    message: 'Repository URL must be a GitHub HTTPS or SSH URL',
+  })
+  .transform((value) => (value.length === 0 ? null : value));
+
+const optionalRepoUrlSchema = z.union([repoUrlValueSchema, z.null()]).optional();
+
 export const setupSchema = z.object({
   agentDriver: z.enum(['claude', 'copilot']).default('copilot'),
   autoSaveProgress: z.boolean().default(true),
@@ -28,8 +43,14 @@ export const setupSchema = z.object({
   copilotPath: optionalCliPathSchema,
   exerciseLanguage: z.enum(['python', 'typescript']).default('python'),
   guideTone: z.enum(['direct', 'encouraging', 'socratic']).default('encouraging'),
-  repoUrl: z.string().trim().max(500).optional(),
+  repoUrl: optionalRepoUrlSchema,
   safeRunChecks: z.boolean().default(true),
+  workspacePath: optionalWorkspacePathSchema,
+});
+
+export const repoLinkSchema = z.object({
+  repoUrl: optionalRepoUrlSchema,
+  workspacePath: optionalWorkspacePathSchema,
 });
 
 export const solutionUpdateSchema = z.object({

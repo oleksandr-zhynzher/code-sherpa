@@ -11,6 +11,7 @@ import type {
   Task,
   TaskFiles,
   Visualization,
+  WorkspaceStatus,
 } from './types';
 
 const apiBaseUrl = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://127.0.0.1:8000';
@@ -75,6 +76,8 @@ export const api = {
       method: 'POST',
     }),
   getSetup: () => request<SetupState>('/api/setup'),
+  getWorkspaceStatus: () =>
+    request<Readonly<{ repoUrl: string | null; status: WorkspaceStatus }>>('/api/repo/status'),
   getResume: () => request<ResumeState>('/api/resume'),
   listLearningPaths: () =>
     request<Readonly<{ data: ReadonlyArray<LearningPathSummary> }>>('/api/paths'),
@@ -89,6 +92,11 @@ export const api = {
     }),
   saveSetup: (input: SetupState) =>
     request<SetupState>('/api/setup', {
+      body: JSON.stringify(input),
+      method: 'POST',
+    }),
+  linkWorkspace: (input: Readonly<{ repoUrl?: string | null; workspacePath?: string }>) =>
+    request<Readonly<{ setup: SetupState; status: WorkspaceStatus }>>('/api/repo/link', {
       body: JSON.stringify(input),
       method: 'POST',
     }),

@@ -2,6 +2,7 @@ node_modules/
 dist/
 .nx/
 .next/
+.github/
 coverage/
 workspace/
 .code-sherpa/

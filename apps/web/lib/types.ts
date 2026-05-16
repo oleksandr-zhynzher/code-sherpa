@@ -44,6 +44,22 @@ export type PlanDetail = PlanSummary &
 export type LearningPathSummary = PlanSummary;
 export type LearningPathDetail = PlanDetail;
 
+export type ProgressEvent = Readonly<{
+  createdAt: string;
+  eventType: string;
+  id: string;
+  metadata: Readonly<Record<string, unknown>>;
+  scopeId: string;
+  scopeType: 'chat' | 'path' | 'quiz' | 'setup' | 'task' | 'topic' | 'visualization';
+}>;
+
+export type ResumeState = Readonly<{
+  lastEvent: ProgressEvent | null;
+  path: LearningPathSummary | null;
+  task: Task | null;
+  topic: Omit<Topic, 'tasks'> | null;
+}>;
+
 export type SetupState = Readonly<{
   agentDriver: 'claude' | 'copilot';
   autoSaveProgress: boolean;

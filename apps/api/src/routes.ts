@@ -7,6 +7,7 @@ import {
   commitTaskSchema,
   createLearningPathSchema,
   idParamsSchema,
+  progressListQuerySchema,
   setupSchema,
   solutionUpdateSchema,
 } from './http/contracts.js';
@@ -45,6 +46,16 @@ export function registerRoutes(server: FastifyInstance): void {
   server.get('/api/setup', async () =>
     server.codeSherpa.db.getSetup(server.codeSherpa.workspacePath),
   );
+
+  server.get('/api/resume', async () => server.codeSherpa.db.getResumeState());
+
+  server.get('/api/progress', async (request) => {
+    const query = progressListQuerySchema.parse(request.query);
+
+    return {
+      data: server.codeSherpa.db.listProgressEvents(query.limit),
+    };
+  });
 
   server.post('/api/setup', async (request, reply) => {
     const input = setupSchema.parse(request.body);

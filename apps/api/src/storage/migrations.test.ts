@@ -16,13 +16,21 @@ function listTables(db: DatabaseSync): ReadonlyArray<string> {
   ).map((row) => row.name);
 }
 
+function listIndexes(db: DatabaseSync): ReadonlyArray<string> {
+  return (
+    db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'index' ORDER BY name")
+      .all() as ReadonlyArray<{ name: string }>
+  ).map((row) => row.name);
+}
+
 describe('database migrations', () => {
   it('creates the versioned production schema for an empty database', () => {
     const db = new DatabaseSync(':memory:');
 
     runMigrations(db);
 
-    expect(getAppliedMigrationVersions(db)).toEqual([1, 2, 3]);
+    expect(getAppliedMigrationVersions(db)).toEqual([1, 2, 3, 4]);
     expect(listTables(db)).toEqual(
       expect.arrayContaining([
         'chat_message',
@@ -47,6 +55,7 @@ describe('database migrations', () => {
     expect(db.prepare('SELECT updated_at FROM user_preferences WHERE id = 1').get()).toMatchObject({
       updated_at: expect.any(String),
     });
+    expect(listIndexes(db)).toContain('idx_progress_event_created_at');
 
     db.close();
   });

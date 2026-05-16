@@ -10,6 +10,10 @@ export const idParamsSchema = z.object({
   id: z.string().trim().min(1).max(200),
 });
 
+export const progressListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
 export const setupSchema = z.object({
   agentDriver: z.enum(['claude', 'copilot']).default('copilot'),
   autoSaveProgress: z.boolean().default(true),

@@ -4,6 +4,8 @@ import type {
   LearningPathSummary,
   PlanDetail,
   PlanSummary,
+  ProgressEvent,
+  ResumeState,
   RunResult,
   SetupState,
   Task,
@@ -73,9 +75,12 @@ export const api = {
       method: 'POST',
     }),
   getSetup: () => request<SetupState>('/api/setup'),
+  getResume: () => request<ResumeState>('/api/resume'),
   listLearningPaths: () =>
     request<Readonly<{ data: ReadonlyArray<LearningPathSummary> }>>('/api/paths'),
   listPlans: () => request<Readonly<{ data: ReadonlyArray<PlanSummary> }>>('/api/plans'),
+  listProgressEvents: () =>
+    request<Readonly<{ data: ReadonlyArray<ProgressEvent> }>>('/api/progress'),
   readFiles: (taskId: string) =>
     request<Readonly<{ files: TaskFiles; task: Task }>>(`/api/tasks/${taskId}/files`),
   runTask: (taskId: string) =>

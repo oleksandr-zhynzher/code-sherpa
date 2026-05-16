@@ -73,6 +73,21 @@ describe('POC data API', () => {
     expect(detailResponse.statusCode).toBe(200);
     expect(detailResponse.json().id).toBe(path.id);
 
+    const resumeResponse = await server.inject({
+      method: 'GET',
+      url: '/api/resume',
+    });
+    expect(resumeResponse.statusCode).toBe(200);
+    expect(resumeResponse.json().path.id).toBe(path.id);
+    expect(resumeResponse.json().lastEvent.eventType).toBe('path_created');
+
+    const progressResponse = await server.inject({
+      method: 'GET',
+      url: '/api/progress?limit=1',
+    });
+    expect(progressResponse.statusCode).toBe(200);
+    expect(progressResponse.json().data).toHaveLength(1);
+
     await server.close();
   });
 

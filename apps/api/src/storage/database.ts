@@ -8,6 +8,8 @@ import type {
   ChatMessage,
   PlanDetail,
   PlanSummary,
+  ProgressEvent,
+  ResumeState,
   SetupState,
   Task,
   TaskContext,
@@ -73,6 +75,18 @@ type VisualizationRow = Readonly<{
   task_id: string;
 }>;
 
+type ProgressEventRow = Readonly<{
+  created_at: string;
+  event_type: string;
+  id: string;
+  metadata_json: string;
+  scope_id: string;
+  scope_type: ProgressEvent['scopeType'];
+}>;
+
+const selectTopicByIdSql = 'SELECT * FROM topic WHERE id = ?';
+const selectTaskByIdSql = 'SELECT * FROM task WHERE id = ?';
+
 export type CodeSherpaDatabase = Readonly<{
   close: () => void;
   addChatMessage: (
@@ -88,6 +102,7 @@ export type CodeSherpaDatabase = Readonly<{
   ) => Visualization;
   createPlan: (goal: string) => PlanDetail;
   getPlan: (id: string) => PlanDetail;
+  getResumeState: () => ResumeState;
   getSetup: (workspacePath: string) => SetupState;
   getTask: (id: string) => Task;
   getTaskContext: (id: string) => TaskContext;
@@ -95,6 +110,7 @@ export type CodeSherpaDatabase = Readonly<{
   getVisualization: (id: string) => Visualization;
   listChatMessages: (taskId: string) => ReadonlyArray<ChatMessage>;
   listPlans: () => ReadonlyArray<PlanSummary>;
+  listProgressEvents: (limit?: number) => ReadonlyArray<ProgressEvent>;
   markTaskDone: (id: string) => Task;
   recordTaskRun: (id: string, passed: boolean) => Task;
   saveSetup: (
@@ -187,7 +203,35 @@ function mapVisualization(row: VisualizationRow): Visualization {
   };
 }
 
-function getPlanSummary(db: DatabaseSync, id: string): PlanSummary {
+function mapProgressEvent(row: ProgressEventRow): ProgressEvent {
+  const metadata = parseProgressMetadata(row.metadata_json);
+
+  return {
+    createdAt: row.created_at,
+    eventType: row.event_type,
+    id: row.id,
+    metadata:
+      typeof metadata === 'object' && metadata !== null && !Array.isArray(metadata)
+        ? (metadata as Readonly<Record<string, unknown>>)
+        : {},
+    scopeId: row.scope_id,
+    scopeType: row.scope_type,
+  };
+}
+
+function parseProgressMetadata(metadataJson: string): unknown {
+  try {
+    return JSON.parse(metadataJson) as unknown;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return { invalidMetadata: true };
+    }
+
+    throw error;
+  }
+}
+
+function findPlanSummary(db: DatabaseSync, id: string): PlanSummary | null {
   const row = db
     .prepare(
       `
@@ -207,11 +251,17 @@ function getPlanSummary(db: DatabaseSync, id: string): PlanSummary {
     )
     .get(id) as PlanRow | undefined;
 
-  if (row === undefined) {
+  return row === undefined ? null : mapPlan(row);
+}
+
+function getPlanSummary(db: DatabaseSync, id: string): PlanSummary {
+  const plan = findPlanSummary(db, id);
+
+  if (plan === null) {
     throw new NotFoundError(`Plan ${id} was not found`);
   }
 
-  return mapPlan(row);
+  return plan;
 }
 
 export function createDatabase(dbPath: string): CodeSherpaDatabase {
@@ -222,41 +272,72 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
   const db = new DatabaseSync(dbPath);
   runMigrations(db);
   const setupRepository = createSetupRepository(db);
+  const insertProgressEvent = (
+    eventType: string,
+    scopeType: ProgressEvent['scopeType'],
+    scopeId: string,
+    metadata: Readonly<Record<string, unknown>> = {},
+  ): ProgressEvent => {
+    const id = `progress-${randomUUID()}`;
+    const createdAt = nowIso();
+    const metadataJson = JSON.stringify(metadata);
+    db.prepare(
+      `
+      INSERT INTO progress_event (id, event_type, scope_type, scope_id, metadata_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `,
+    ).run(id, eventType, scopeType, scopeId, metadataJson, createdAt);
+
+    return {
+      createdAt,
+      eventType,
+      id,
+      metadata,
+      scopeId,
+      scopeType,
+    };
+  };
 
   return {
     addChatMessage: (input) => {
-      const id = `msg-${randomUUID()}`;
-      const createdAt = nowIso();
-      db.prepare(
-        'INSERT INTO chat_message (id, task_id, role, content_md, created_at) VALUES (?, ?, ?, ?, ?)',
-      ).run(id, input.taskId, input.role, input.contentMd, createdAt);
+      return runInTransaction(db, () => {
+        const id = `msg-${randomUUID()}`;
+        const createdAt = nowIso();
+        db.prepare(
+          'INSERT INTO chat_message (id, task_id, role, content_md, created_at) VALUES (?, ?, ?, ?, ?)',
+        ).run(id, input.taskId, input.role, input.contentMd, createdAt);
+        insertProgressEvent('chat_message', 'task', input.taskId, { role: input.role });
 
-      return {
-        contentMd: input.contentMd,
-        createdAt,
-        id,
-        role: input.role,
-        taskId: input.taskId,
-      };
+        return {
+          contentMd: input.contentMd,
+          createdAt,
+          id,
+          role: input.role,
+          taskId: input.taskId,
+        };
+      });
     },
     close: () => {
       db.close();
     },
     createVisualization: (input) => {
-      const id = `viz-${randomUUID()}`;
-      const createdAt = nowIso();
-      db.prepare(
-        'INSERT INTO visualization (id, task_id, prompt, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      ).run(id, input.taskId, input.prompt, input.kind, input.payload, createdAt);
+      return runInTransaction(db, () => {
+        const id = `viz-${randomUUID()}`;
+        const createdAt = nowIso();
+        db.prepare(
+          'INSERT INTO visualization (id, task_id, prompt, kind, payload, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        ).run(id, input.taskId, input.prompt, input.kind, input.payload, createdAt);
+        insertProgressEvent('visualization_created', 'task', input.taskId, { kind: input.kind });
 
-      return {
-        createdAt,
-        id,
-        kind: input.kind,
-        payload: input.payload,
-        prompt: input.prompt,
-        taskId: input.taskId,
-      };
+        return {
+          createdAt,
+          id,
+          kind: input.kind,
+          payload: input.payload,
+          prompt: input.prompt,
+          taskId: input.taskId,
+        };
+      });
     },
     createPlan: (goal: string) => {
       const createdAt = nowIso();
@@ -300,14 +381,16 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
             );
           }
         }
+        insertProgressEvent('path_created', 'path', template.id, { goal, title: template.title });
       });
 
       return getPlanDetail(db, template.id);
     },
     getPlan: (id: string) => getPlanDetail(db, id),
+    getResumeState: () => getResumeState(db),
     getSetup: setupRepository.getSetup,
     getTask: (id: string) => {
-      const row = db.prepare('SELECT * FROM task WHERE id = ?').get(id) as TaskRow | undefined;
+      const row = db.prepare(selectTaskByIdSql).get(id) as TaskRow | undefined;
       if (row === undefined) {
         throw new NotFoundError(`Task ${id} was not found`);
       }
@@ -332,9 +415,7 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
       return mapTaskContext(row);
     },
     getTopic: (id: string) => {
-      const topicRow = db.prepare('SELECT * FROM topic WHERE id = ?').get(id) as unknown as
-        | TopicRow
-        | undefined;
+      const topicRow = db.prepare(selectTopicByIdSql).get(id) as unknown as TopicRow | undefined;
       if (topicRow === undefined) {
         throw new NotFoundError(`Topic ${id} was not found`);
       }
@@ -387,38 +468,57 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
 
       return rows.map(mapPlan);
     },
+    listProgressEvents: (limit) => listProgressEvents(db, limit),
     markTaskDone: (id: string) => {
-      db.prepare("UPDATE task SET status = 'done' WHERE id = ?").run(id);
+      getTaskById(db, id);
+      runInTransaction(db, () => {
+        db.prepare("UPDATE task SET status = 'done' WHERE id = ?").run(id);
+        insertProgressEvent('task_completed', 'task', id, { status: 'done' });
+      });
       return getTaskById(db, id);
     },
     recordTaskRun: (id: string, passed: boolean) => {
-      db.prepare(
-        `
-        UPDATE task
-        SET status = ?, last_run_at = ?, last_run_pass = ?
-        WHERE id = ?
-      `,
-      ).run(passed ? 'passing' : 'in_progress', nowIso(), passed ? 1 : 0, id);
+      getTaskById(db, id);
+      runInTransaction(db, () => {
+        db.prepare(
+          `
+          UPDATE task
+          SET status = ?, last_run_at = ?, last_run_pass = ?
+          WHERE id = ?
+        `,
+        ).run(passed ? 'passing' : 'in_progress', nowIso(), passed ? 1 : 0, id);
+        insertProgressEvent('task_run', 'task', id, {
+          passed,
+          status: passed ? 'passing' : 'in_progress',
+        });
+      });
 
       return getTaskById(db, id);
     },
     saveSetup: setupRepository.saveSetup,
     updateTaskFiles: (id: string, solutionPath: string, testPath: string) => {
-      db.prepare(
-        `
-        UPDATE task
-        SET solution_path = ?, test_path = ?, status = 'in_progress'
-        WHERE id = ?
-      `,
-      ).run(solutionPath, testPath, id);
+      getTaskById(db, id);
+      runInTransaction(db, () => {
+        db.prepare(
+          `
+          UPDATE task
+          SET solution_path = ?, test_path = ?, status = 'in_progress'
+          WHERE id = ?
+        `,
+        ).run(solutionPath, testPath, id);
+        insertProgressEvent('task_scaffolded', 'task', id, { solutionPath, testPath });
+      });
 
       return getTaskById(db, id);
     },
     updateTopicExplanation: (id: string, explanationMd: string) => {
-      db.prepare('UPDATE topic SET explanation_md = ? WHERE id = ?').run(explanationMd, id);
-      const row = db.prepare('SELECT * FROM topic WHERE id = ?').get(id) as unknown as
-        | TopicRow
-        | undefined;
+      runInTransaction(db, () => {
+        db.prepare('UPDATE topic SET explanation_md = ? WHERE id = ?').run(explanationMd, id);
+        insertProgressEvent('topic_explained', 'topic', id, {
+          explanationLength: explanationMd.length,
+        });
+      });
+      const row = db.prepare(selectTopicByIdSql).get(id) as unknown as TopicRow | undefined;
       if (row === undefined) {
         throw new NotFoundError(`Topic ${id} was not found`);
       }
@@ -428,10 +528,30 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
   };
 }
 
+function normalizeProgressLimit(limit = 50): number {
+  if (!Number.isFinite(limit)) {
+    return 50;
+  }
+
+  return Math.min(Math.max(Math.trunc(limit), 1), 200);
+}
+
+function listProgressEvents(db: DatabaseSync, limit?: number): ReadonlyArray<ProgressEvent> {
+  const rows = db
+    .prepare(
+      `
+      SELECT * FROM progress_event
+      ORDER BY created_at DESC, rowid DESC
+      LIMIT ?
+    `,
+    )
+    .all(normalizeProgressLimit(limit)) as unknown as ReadonlyArray<ProgressEventRow>;
+
+  return rows.map(mapProgressEvent);
+}
+
 function getTaskById(db: DatabaseSync, id: string): Task {
-  const row = db.prepare('SELECT * FROM task WHERE id = ?').get(id) as unknown as
-    | TaskRow
-    | undefined;
+  const row = db.prepare(selectTaskByIdSql).get(id) as unknown as TaskRow | undefined;
   if (row === undefined) {
     throw new NotFoundError(`Task ${id} was not found`);
   }
@@ -452,5 +572,123 @@ function getPlanDetail(db: DatabaseSync, id: string): PlanDetail {
       ...mapTopic(topicRow),
       tasks: (taskStatement.all(topicRow.id) as unknown as ReadonlyArray<TaskRow>).map(mapTask),
     })),
+  };
+}
+
+function getFirstTopicForPlan(db: DatabaseSync, planId: string): Topic | null {
+  const row = db
+    .prepare('SELECT * FROM topic WHERE plan_id = ? ORDER BY position ASC LIMIT 1')
+    .get(planId) as unknown as TopicRow | undefined;
+
+  return row === undefined ? null : mapTopic(row);
+}
+
+function getFirstTaskForTopic(db: DatabaseSync, topicId: string): Task | null {
+  const row = db
+    .prepare('SELECT * FROM task WHERE topic_id = ? ORDER BY position ASC LIMIT 1')
+    .get(topicId) as unknown as TaskRow | undefined;
+
+  return row === undefined ? null : mapTask(row);
+}
+
+function getResumeState(db: DatabaseSync): ResumeState {
+  const events = listProgressEvents(db, 50);
+
+  for (const event of events) {
+    const resume = getResumeStateForEvent(db, event);
+    if (resume !== null) {
+      return resume;
+    }
+  }
+
+  return getDefaultResumeState(db);
+}
+
+function getResumeStateForEvent(db: DatabaseSync, lastEvent: ProgressEvent): ResumeState | null {
+  if (lastEvent.scopeType === 'task') {
+    const taskRow = db.prepare(selectTaskByIdSql).get(lastEvent.scopeId) as unknown as
+      | TaskRow
+      | undefined;
+    if (taskRow === undefined) {
+      return null;
+    }
+    const task = mapTask(taskRow);
+    const topicRow = db.prepare(selectTopicByIdSql).get(task.topicId) as unknown as
+      | TopicRow
+      | undefined;
+    if (topicRow === undefined) {
+      return null;
+    }
+    const path = findPlanSummary(db, topicRow.plan_id);
+    if (path === null) {
+      return null;
+    }
+
+    return {
+      lastEvent,
+      path,
+      task,
+      topic: mapTopic(topicRow),
+    };
+  }
+
+  if (lastEvent.scopeType === 'topic') {
+    const topicRow = db.prepare(selectTopicByIdSql).get(lastEvent.scopeId) as unknown as
+      | TopicRow
+      | undefined;
+    if (topicRow === undefined) {
+      return null;
+    }
+    const topic = mapTopic(topicRow);
+    const path = findPlanSummary(db, topic.planId);
+    if (path === null) {
+      return null;
+    }
+
+    return {
+      lastEvent,
+      path,
+      task: getFirstTaskForTopic(db, topic.id),
+      topic,
+    };
+  }
+
+  if (lastEvent.scopeType !== 'path') {
+    return null;
+  }
+
+  const path = findPlanSummary(db, lastEvent.scopeId);
+  if (path === null) {
+    return null;
+  }
+
+  return createResumeForPlan(db, path, lastEvent);
+}
+
+function getDefaultResumeState(db: DatabaseSync): ResumeState {
+  const planId = (
+    db.prepare('SELECT id FROM plan ORDER BY created_at DESC LIMIT 1').get() as
+      | Readonly<{ id: string }>
+      | undefined
+  )?.id;
+  if (planId === undefined) {
+    return { lastEvent: null, path: null, task: null, topic: null };
+  }
+
+  return createResumeForPlan(db, getPlanSummary(db, planId), null);
+}
+
+function createResumeForPlan(
+  db: DatabaseSync,
+  path: PlanSummary,
+  lastEvent: ProgressEvent | null,
+): ResumeState {
+  const topic = getFirstTopicForPlan(db, path.id);
+
+  return {
+    lastEvent,
+    path,
+    task: topic === null ? null : getFirstTaskForTopic(db, topic.id),
+    topic,
   };
 }

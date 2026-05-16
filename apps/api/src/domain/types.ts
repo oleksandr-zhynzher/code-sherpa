@@ -40,6 +40,22 @@ export type PlanDetail = PlanSummary &
     topics: ReadonlyArray<Topic & Readonly<{ tasks: ReadonlyArray<Task> }>>;
   }>;
 
+export type ProgressEvent = Readonly<{
+  createdAt: string;
+  eventType: string;
+  id: string;
+  metadata: Readonly<Record<string, unknown>>;
+  scopeId: string;
+  scopeType: 'chat' | 'path' | 'quiz' | 'setup' | 'task' | 'topic' | 'visualization';
+}>;
+
+export type ResumeState = Readonly<{
+  lastEvent: ProgressEvent | null;
+  path: PlanSummary | null;
+  task: Task | null;
+  topic: Topic | null;
+}>;
+
 export type SetupState = Readonly<{
   agentDriver: 'claude' | 'copilot';
   autoSaveProgress: boolean;

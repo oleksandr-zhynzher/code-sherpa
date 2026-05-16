@@ -276,6 +276,13 @@ function createProductionDurabilitySchema(db: DatabaseSync): void {
   );
 }
 
+function addProgressEventIndexes(db: DatabaseSync): void {
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_progress_event_created_at
+    ON progress_event(created_at DESC);
+  `);
+}
+
 const migrations: ReadonlyArray<Migration> = [
   {
     name: 'create-base-poc-schema',
@@ -291,6 +298,11 @@ const migrations: ReadonlyArray<Migration> = [
     name: 'create-production-durability-schema',
     run: createProductionDurabilitySchema,
     version: 3,
+  },
+  {
+    name: 'add-progress-event-indexes',
+    run: addProgressEventIndexes,
+    version: 4,
   },
 ];
 

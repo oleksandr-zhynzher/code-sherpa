@@ -921,6 +921,147 @@ button {
   font-weight: 800;
 }
 
+.theory-view {
+  display: grid;
+  gap: 1.25rem;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-primary);
+  padding: 1.25rem;
+}
+
+.theory-main,
+.theory-guide,
+.theory-article {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.theory-article {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--rounded-md);
+  background: var(--surface-card);
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.theory-article h1,
+.theory-article h2,
+.theory-next h2 {
+  margin: 0;
+  color: var(--foreground-primary);
+  font-family: var(--font-heading);
+}
+
+.theory-article h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.theory-article p,
+.theory-step p,
+.theory-next p {
+  margin: 0;
+  color: var(--foreground-muted);
+  line-height: 1.7;
+}
+
+.theory-key-concept,
+.theory-step,
+.theory-next,
+.theory-selected {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--rounded-md);
+  background: var(--surface-input);
+  padding: 1rem;
+}
+
+.theory-key-concept {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.theory-key-concept strong {
+  color: var(--foreground-primary);
+  line-height: 1.6;
+}
+
+.theory-steps,
+.theory-complexity {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.theory-step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.theory-step strong {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  color: var(--foreground-inverse);
+}
+
+.theory-complexity {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.theory-complexity span {
+  color: var(--foreground-muted);
+}
+
+.theory-complexity strong {
+  color: var(--foreground-primary);
+}
+
+.theory-article mark {
+  border-radius: var(--rounded-sm);
+  background: color-mix(in srgb, var(--warning) 22%, var(--surface-card));
+  color: var(--foreground-primary);
+  padding: 0.1rem 0.25rem;
+}
+
+.theory-next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.theory-next a {
+  color: var(--accent-primary);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.theory-guide {
+  align-content: start;
+}
+
+.theory-selected {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.theory-selected span {
+  color: var(--foreground-muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+@media (min-width: 1024px) {
+  .theory-view {
+    grid-template-columns: minmax(0, 1fr) 23.75rem;
+  }
+}
+
 @media (min-width: 1024px) {
   .learn-topbar {
     grid-template-columns: auto 1fr auto;

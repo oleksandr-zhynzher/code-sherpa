@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react';
 
+import type { LearnView } from '../../lib/types';
 import { Button, Logo, Pill, ProgressBar, Tabs } from '../ui/design-system';
 
 const topics = [
-  'Arrays Basics',
-  'Linked Lists',
-  'Arrays & Hash Maps',
-  'Stacks & Queues',
-  'Trees & Graphs',
-  'Sorting Algorithms',
+  { id: 'arrays-basics', label: 'Arrays Basics', status: 'done' },
+  { id: 'linked-lists', label: 'Linked Lists', status: 'done' },
+  { id: 'arrays-hash-maps', label: 'Arrays & Hash Maps', status: 'active' },
+  { id: 'stacks-queues', label: 'Stacks & Queues', status: 'upcoming' },
+  { id: 'trees-graphs', label: 'Trees & Graphs', status: 'upcoming' },
+  { id: 'sorting', label: 'Sorting Algorithms', status: 'upcoming' },
 ];
 
 const codeLines = [
@@ -21,7 +22,9 @@ const codeLines = [
   '        seen[num] = i',
 ];
 
-export function LearningWorkspace(): ReactNode {
+type Props = { onNavigate?: (view: LearnView) => void };
+
+export function LearningWorkspace({ onNavigate }: Props): ReactNode {
   return (
     <section className="learn-space" aria-label="Your learning space">
       <header className="learn-topbar">
@@ -33,9 +36,11 @@ export function LearningWorkspace(): ReactNode {
             Learning Space
           </a>
         </nav>
-        <div className="learn-topbar__status">
-          <span aria-hidden="true" />
-          <strong>All systems ready</strong>
+        <div className="learn-topbar__right">
+          <div className="learn-topbar__status">
+            <span className="learn-topbar__status-dot" aria-hidden="true" />
+            <span>All systems ready</span>
+          </div>
           <div aria-label="User initials" className="learn-avatar">
             OZ
           </div>
@@ -43,110 +48,161 @@ export function LearningWorkspace(): ReactNode {
       </header>
 
       <div className="learn-layout">
+        {/* Sidebar */}
         <aside className="learn-sidebar">
           <div className="learn-sidebar__header">
-            <div>
-              <p className="learn-kicker">Your Paths</p>
-              <h2>Continue where you left off</h2>
-            </div>
+            <p className="learn-kicker">Your Paths</p>
             <Button variant="secondary">New</Button>
           </div>
 
-          <article className="learn-continue-card">
-            <span>Arrays &amp; Hash Maps — Exercise 3</span>
-            <strong>Data Structures Fundamentals</strong>
+          <button
+            className="learn-continue-card"
+            onClick={() => onNavigate?.('exercise')}
+            type="button"
+          >
+            <div className="learn-continue-card__icon" aria-hidden="true">
+              ▶
+            </div>
+            <div>
+              <p className="learn-continue-card__action">Continue where you left off</p>
+              <p className="learn-continue-card__topic">Arrays &amp; Hash Maps</p>
+            </div>
+          </button>
+
+          <div className="learn-path-row active">
+            <div className="learn-path-row__header">
+              <strong className="learn-path-row__title">Data Structures Fundamentals</strong>
+              <span className="learn-path-row__meta">5 of 12 camps</span>
+            </div>
             <ProgressBar label="Data Structures Fundamentals progress" max={12} value={5} />
-            <small>5 of 12 camps · Last: 2 days ago</small>
-          </article>
-
-          <div className="learn-path-card active">
-            <strong>Data Structures Fundamentals</strong>
-            <span>5 of 12 camps</span>
-          </div>
-          <div className="learn-path-card">
-            <strong>Algorithm Patterns</strong>
-            <span>1 of 8 camps · Last: 1 week ago</span>
           </div>
 
-          <div className="learn-topic-list">
-            <p className="learn-kicker">Topics</p>
+          <div className="learn-topics-section">
+            <p className="learn-topics-section__label">Topics</p>
             {topics.map((topic) => (
-              <button
-                className={topic === 'Arrays & Hash Maps' ? 'active' : undefined}
-                key={topic}
-                type="button"
-              >
-                {topic}
-              </button>
+              <div key={topic.id}>
+                <button
+                  className={`learn-topic-item${topic.status === 'active' ? ' active' : ''}`}
+                  type="button"
+                >
+                  <span
+                    className={`learn-topic-item__icon${
+                      topic.status === 'done'
+                        ? ' learn-topic-item__icon--done'
+                        : ' learn-topic-item__icon--circle'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {topic.status === 'done' ? '✓' : ''}
+                  </span>
+                  <span className="learn-topic-item__name">{topic.label}</span>
+                </button>
+                {topic.status === 'active' && (
+                  <div className="learn-topic-subtopics">
+                    <button
+                      className="learn-topic-subtopic"
+                      onClick={() => onNavigate?.('theory')}
+                      type="button"
+                    >
+                      Theory
+                    </button>
+                    <button className="learn-topic-subtopic active" type="button">
+                      Exercises
+                    </button>
+                    <button
+                      className="learn-topic-subtopic"
+                      onClick={() => onNavigate?.('quiz')}
+                      type="button"
+                    >
+                      Quiz
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </aside>
 
+        {/* Main area */}
         <main className="learn-main">
-          <header className="learn-exercise-header">
-            <p>Data Structures / Arrays &amp; Hash Maps / Exercise 3</p>
-            <div>
-              <h1>Two Sum</h1>
+          <div className="learn-exercise-header">
+            <p className="learn-exercise-header__breadcrumb">
+              Data Structures / Arrays &amp; Hash Maps / Exercise 3
+            </p>
+            <div className="learn-exercise-header__title-row">
+              <h1 className="learn-exercise-header__title">Two Sum</h1>
               <Pill tone="warning">Medium</Pill>
             </div>
-          </header>
+          </div>
 
-          <section className="learn-exercise-body">
-            <div>
-              <h2>Exercise</h2>
-              <p>
-                Given an array of integers and a target sum, return the indices of two numbers that
-                add up to the target.
-              </p>
-              <div className="learn-example">
-                <strong>Example</strong>
-                <p>Input: nums = [2, 7, 11, 15], target = 9</p>
-                <p>Output: [0, 1] (because 2 + 7 = 9)</p>
-              </div>
+          <div className="learn-exercise-desc">
+            <p>
+              Given an array of integers and a target sum, return the indices of two numbers that
+              add up to the target.
+            </p>
+            <div className="learn-example">
+              <strong>Example</strong>
+              <p>Input: nums = [2, 7, 11, 15], target = 9</p>
+              <p>Output: [0, 1] (because 2 + 7 = 9)</p>
             </div>
+          </div>
 
-            <div className="learn-editor-label">
-              <h2>Your Solution</h2>
+          <div className="learn-editor-header">
+            <h2>Your Solution</h2>
+            <span className="learn-editor-lang">Python</span>
+          </div>
+
+          <div className="learn-code-editor">
+            <div className="learn-code-editor__label">
               <span>solution.py</span>
             </div>
-            <pre className="learn-code" aria-label="Your Solution">
-              {codeLines.map((line, index) => `${index + 1}  ${line}`).join('\n')}
+            <pre aria-label="Your Solution">
+              {codeLines.map((line, i) => (
+                <span className="learn-code-line" key={i}>
+                  <span className="learn-code-line-num">{i + 1}</span>
+                  {line}
+                  {'\n'}
+                </span>
+              ))}
             </pre>
+          </div>
 
-            <div className="learn-action-bar">
-              <Button>Check My Answer</Button>
-              <Button variant="secondary">Save Progress</Button>
-              <Button variant="ghost">Get a Hint</Button>
-            </div>
+          <div className="learn-action-bar">
+            <Button>Check My Answer</Button>
+            <Button variant="secondary">Save Progress</Button>
+            <Button variant="ghost">Get a Hint</Button>
+          </div>
 
-            <section className="learn-result" role="status">
-              <strong>All tests passed!</strong>
-              <p>3 of 3 test cases passed — your solution handles all edge cases correctly.</p>
-            </section>
-
-            <section className="learn-next">
-              <div>
-                <p className="learn-kicker">Up next</p>
-                <h2>Take the Quiz</h2>
-                <p>10 questions · Test your understanding</p>
-              </div>
-              <a href="/learn#quiz">Review theory</a>
-            </section>
+          <section className="learn-result" role="status">
+            <strong>All tests passed!</strong>
+            <p>3 of 3 test cases passed — your solution handles all edge cases correctly.</p>
           </section>
+
+          <div className="learn-next">
+            <div>
+              <p className="learn-kicker">Up next</p>
+              <h2>Take the Quiz</h2>
+              <p>10 questions · Test your understanding</p>
+            </div>
+            <Button onClick={() => onNavigate?.('quiz')}>Take Quiz</Button>
+          </div>
         </main>
 
+        {/* Right panel */}
         <aside className="learn-guide">
-          <Tabs
-            activeId="guide"
-            items={[
-              { id: 'guide', label: 'Guide' },
-              { id: 'visualize', label: 'Visualize' },
-              { id: 'progress', label: 'Progress' },
-            ]}
-          />
-          <div className="learn-chat">
+          <div className="learn-guide__tabs">
+            <Tabs
+              activeId="guide"
+              items={[
+                { id: 'guide', label: 'Guide' },
+                { id: 'visualize', label: 'Visualize' },
+                { id: 'progress', label: 'Progress' },
+              ]}
+            />
+          </div>
+          <div className="learn-chat-area">
             <article className="learn-message assistant">
-              <strong>Sherpa</strong>
+              <p className="learn-message__label">Sherpa</p>
               <p>
                 Great approach using a hash map! You&apos;re storing each number&apos;s index as you
                 iterate — that gives you O(n) time complexity.
@@ -156,22 +212,28 @@ export function LearningWorkspace(): ReactNode {
               <p>Why do I check &apos;if diff in seen&apos; before adding the current number?</p>
             </article>
             <article className="learn-message assistant">
-              <strong>Sherpa</strong>
+              <p className="learn-message__label">Sherpa</p>
               <p>
                 Good question! If you added the number first, you might match a number with itself.
                 By checking before storing, you compare with a different earlier element.
               </p>
             </article>
-            <div className="learn-quick-actions">
-              <button type="button">Small hint</button>
-              <button type="button">Explain error</button>
-              <button type="button">Break it down</button>
-            </div>
           </div>
-          <label className="learn-chat-input">
-            <span>Ask your Sherpa anything...</span>
-            <textarea rows={3} />
-          </label>
+          <div className="learn-quick-actions">
+            <button type="button">Small hint</button>
+            <button type="button">Explain error</button>
+            <button type="button">Break it down</button>
+          </div>
+          <div className="learn-chat-input-bar">
+            <input
+              aria-label="Ask your Sherpa anything"
+              placeholder="Ask your Sherpa anything..."
+              type="text"
+            />
+            <button aria-label="Send message" className="learn-chat-input-bar__send" type="button">
+              →
+            </button>
+          </div>
         </aside>
       </div>
     </section>

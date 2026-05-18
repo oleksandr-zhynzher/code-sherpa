@@ -204,3 +204,5 @@ export type QuizAttempt = Readonly<{
   completedAt: string | null;
   answers: ReadonlyArray<QuizAnswer>;
 }>;
+
+export type LearnView = 'exercise' | 'quiz' | 'results' | 'theory';

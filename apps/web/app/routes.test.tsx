@@ -26,6 +26,6 @@ describe('app routes', () => {
     expect(setupMarkup).toContain('AI Assistant');
     expect(learnMarkup).toContain('Continue where you left off');
     expect(learnMarkup).toContain('Two Sum');
-    expect(learnMarkup).toContain('POC controls');
+    expect(learnMarkup).toContain('All systems ready');
   });
 });

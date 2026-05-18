@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react';
 
+import type { LearnView } from '../../lib/types';
 import { Button, Logo, ProgressBar, Tabs } from '../ui/design-system';
 
 const topics = [
-  'Arrays Basics',
-  'Linked Lists',
-  'Arrays & Hash Maps',
-  'Stacks & Queues',
-  'Trees & Graphs',
+  { id: 'arrays-basics', label: 'Arrays Basics', status: 'done' },
+  { id: 'linked-lists', label: 'Linked Lists', status: 'done' },
+  { id: 'arrays-hash-maps', label: 'Arrays & Hash Maps', status: 'active' },
+  { id: 'stacks-queues', label: 'Stacks & Queues', status: 'upcoming' },
+  { id: 'trees-graphs', label: 'Trees & Graphs', status: 'upcoming' },
 ];
 
 const choices = [
@@ -17,9 +18,11 @@ const choices = [
   'O(n log n) — Linearithmic time',
 ];
 
-export function QuizView(): ReactNode {
+type Props = { onNavigate?: (view: LearnView) => void };
+
+export function QuizView({ onNavigate }: Props): ReactNode {
   return (
-    <section className="learn-space quiz-frame" id="quiz" aria-label="Learning Space quiz">
+    <section className="learn-space" id="quiz" aria-label="Learning Space quiz">
       <header className="learn-topbar">
         <Logo />
         <nav aria-label="Learning navigation">
@@ -29,9 +32,11 @@ export function QuizView(): ReactNode {
             Learning Space
           </a>
         </nav>
-        <div className="learn-topbar__status">
-          <span aria-hidden="true" />
-          <strong>All systems ready</strong>
+        <div className="learn-topbar__right">
+          <div className="learn-topbar__status">
+            <span className="learn-topbar__status-dot" aria-hidden="true" />
+            <span>All systems ready</span>
+          </div>
           <div aria-label="User initials" className="learn-avatar">
             OZ
           </div>
@@ -39,55 +44,93 @@ export function QuizView(): ReactNode {
       </header>
 
       <div className="learn-layout">
+        {/* Sidebar */}
         <aside className="learn-sidebar">
           <div className="learn-sidebar__header">
-            <div>
-              <p className="learn-kicker">Your Paths</p>
-              <h2>Quiz in progress</h2>
-            </div>
+            <p className="learn-kicker">Your Paths</p>
             <Button variant="secondary">New</Button>
           </div>
 
-          <article className="learn-continue-card">
-            <span>Arrays &amp; Hash Maps — Q4 of 10</span>
-            <strong>Data Structures</strong>
-            <ProgressBar label="Data Structures quiz progress" max={10} value={4} />
-            <small>6 topics · 40% complete</small>
-          </article>
+          <button className="learn-continue-card warning" type="button">
+            <div className="learn-continue-card__icon" aria-hidden="true">
+              ▶
+            </div>
+            <div>
+              <p className="learn-continue-card__action">Quiz in progress</p>
+              <p className="learn-continue-card__topic">Arrays &amp; Hash Maps — Q4 of 10</p>
+            </div>
+          </button>
 
-          <div className="learn-topic-list">
-            <p className="learn-kicker">Topics</p>
-            {topics.map((topic) => (
-              <button
-                className={topic === 'Arrays & Hash Maps' ? 'active' : undefined}
-                key={topic}
-                type="button"
-              >
-                {topic}
-              </button>
-            ))}
+          <div className="learn-path-row active">
+            <div className="learn-path-row__header">
+              <strong className="learn-path-row__title">Data Structures</strong>
+              <span className="learn-path-row__meta">6 topics</span>
+            </div>
+            <ProgressBar label="Data Structures quiz progress" max={10} value={4} />
           </div>
 
-          <nav className="quiz-subnav" aria-label="Arrays and Hash Maps views">
-            <a href="/learn#theory">Theory</a>
-            <a href="/learn">Exercises</a>
-            <a aria-current="page" href="/learn#quiz">
-              Quiz
-            </a>
-          </nav>
+          <div className="learn-topics-section">
+            <p className="learn-topics-section__label">Topics</p>
+            {topics.map((topic) => (
+              <div key={topic.id}>
+                <button
+                  className={`learn-topic-item${topic.status === 'active' ? ' active' : ''}`}
+                  type="button"
+                >
+                  <span
+                    className={`learn-topic-item__icon${
+                      topic.status === 'done'
+                        ? ' learn-topic-item__icon--done'
+                        : ' learn-topic-item__icon--circle'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {topic.status === 'done' ? '✓' : ''}
+                  </span>
+                  <span className="learn-topic-item__name">{topic.label}</span>
+                </button>
+                {topic.status === 'active' && (
+                  <div className="learn-topic-subtopics">
+                    <button
+                      className="learn-topic-subtopic"
+                      onClick={() => onNavigate?.('theory')}
+                      type="button"
+                    >
+                      Theory
+                    </button>
+                    <button
+                      className="learn-topic-subtopic"
+                      onClick={() => onNavigate?.('exercise')}
+                      type="button"
+                    >
+                      Exercises
+                    </button>
+                    <button className="learn-topic-subtopic active" type="button">
+                      Quiz
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </aside>
 
+        {/* Main area */}
         <main className="learn-main">
-          <header className="quiz-header">
-            <p className="learn-kicker">Data Structures / Arrays &amp; Hash Maps / Quiz</p>
-            <div>
+          <div className="quiz-header">
+            <p className="quiz-header__breadcrumb">
+              Data Structures / Arrays &amp; Hash Maps / Quiz
+            </p>
+            <div className="quiz-header__title-row">
               <h1>Arrays &amp; Hash Maps Quiz</h1>
-              <time dateTime="PT12M34S">12:34</time>
+              <time className="quiz-header__timer" dateTime="PT12M34S">
+                12:34
+              </time>
             </div>
-            <span>4 / 10</span>
-          </header>
+            <p className="quiz-header__progress">4 / 10</p>
+          </div>
 
-          <article className="quiz-card">
+          <div className="quiz-question-card">
             <div className="quiz-question-meta">
               <strong>Question 4</strong>
               <span>Multiple Choice</span>
@@ -113,41 +156,52 @@ export function QuizView(): ReactNode {
               <Button variant="secondary">Previous</Button>
               <Button>Next Question</Button>
             </div>
-          </article>
+          </div>
         </main>
 
+        {/* Right panel */}
         <aside className="learn-guide">
-          <Tabs
-            activeId="guide"
-            items={[
-              { id: 'guide', label: 'Guide' },
-              { id: 'visualize', label: 'Visualize' },
-              { id: 'progress', label: 'Progress' },
-            ]}
-          />
-          <div className="quiz-hint">
-            <strong>Hint available</strong>
-            <p>
-              Think about how hash functions distribute keys across buckets. What happens in the
-              ideal case?
-            </p>
+          <div className="learn-guide__tabs">
+            <Tabs
+              activeId="guide"
+              items={[
+                { id: 'guide', label: 'Guide' },
+                { id: 'visualize', label: 'Visualize' },
+                { id: 'progress', label: 'Progress' },
+              ]}
+            />
           </div>
-          <article className="learn-message assistant">
-            <strong>Sherpa</strong>
-            <p>
-              Consider what makes hash maps fast — the hash function computes an index directly. How
-              many steps does that take on average?
-            </p>
-          </article>
+          <div className="learn-chat-area">
+            <div className="learn-hint-card">
+              <strong>Hint available</strong>
+              <p>
+                Think about how hash functions distribute keys across buckets. What happens in the
+                ideal case?
+              </p>
+            </div>
+            <article className="learn-message assistant">
+              <p className="learn-message__label">Sherpa</p>
+              <p>
+                Consider what makes hash maps fast — the hash function computes an index directly.
+                How many steps does that take on average?
+              </p>
+            </article>
+          </div>
           <div className="learn-quick-actions">
             <button type="button">Small hint</button>
             <button type="button">Explain topic</button>
             <button type="button">Break it down</button>
           </div>
-          <label className="learn-chat-input">
-            <span>Ask your Sherpa anything...</span>
-            <textarea rows={3} />
-          </label>
+          <div className="learn-chat-input-bar">
+            <input
+              aria-label="Ask your Sherpa anything"
+              placeholder="Ask your Sherpa anything..."
+              type="text"
+            />
+            <button aria-label="Send message" className="learn-chat-input-bar__send" type="button">
+              →
+            </button>
+          </div>
         </aside>
       </div>
     </section>

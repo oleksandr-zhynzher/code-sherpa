@@ -18,27 +18,42 @@ const GOAL_SUGGESTIONS = [
   'Prepare for system design interviews',
 ];
 
+type Step = 'form' | 'generating-plan' | 'generating-content';
+
+const STEP_LABEL: Record<Step, string> = {
+  form: '',
+  'generating-plan': 'Building your learning plan…',
+  'generating-content': 'Generating theory, quizzes & exercises for every topic…',
+};
+
 export function PlanCreate({ onCancel, onPlanCreated }: Props): ReactNode {
   const [goal, setGoal] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [step, setStep] = useState<Step>('form');
   const [error, setError] = useState<string | null>(null);
+
+  const isGenerating = step !== 'form';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!goal.trim() || isGenerating) return;
-    setIsGenerating(true);
     setError(null);
+
     try {
+      setStep('generating-plan');
       const plan = await api.createPlan(goal.trim());
-      onPlanCreated(plan);
+
+      setStep('generating-content');
+      await api.generateAllPlanContent(plan.id);
+
+      const fresh = await api.showPlan(plan.id);
+      onPlanCreated(fresh);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : 'Failed to generate plan. Is the AI assistant configured?',
       );
-    } finally {
-      setIsGenerating(false);
+      setStep('form');
     }
   }
 
@@ -108,7 +123,7 @@ export function PlanCreate({ onCancel, onPlanCreated }: Props): ReactNode {
               {isGenerating ? (
                 <>
                   <span className="plan-create-spinner" aria-hidden="true" />
-                  Generating plan…
+                  {STEP_LABEL[step]}
                 </>
               ) : (
                 'Generate Plan'

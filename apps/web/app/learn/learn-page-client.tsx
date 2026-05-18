@@ -10,55 +10,6 @@ import { PlanCreate } from './plan-create';
 
 type Phase = 'courses' | 'create' | 'learning' | 'loading';
 
-interface GenerateAllBarProps {
-  planId: string;
-  onPlanRefreshed: (plan: PlanDetail) => void;
-}
-
-function GenerateAllBar({ planId, onPlanRefreshed }: GenerateAllBarProps) {
-  const [state, setState] = useState<'done' | 'idle' | 'running'>('idle');
-  const [result, setResult] = useState<null | string>(null);
-
-  async function run() {
-    setState('running');
-    setResult(null);
-    try {
-      const res = await api.generateAllPlanContent(planId);
-      const { explanations, quizzes, exercises } = res.generated;
-      setResult(
-        `Generated: ${explanations} theory pages, ${quizzes} quizzes, ${exercises} exercises across ${res.total} topics.`,
-      );
-      const fresh = await api.showPlan(planId);
-      onPlanRefreshed(fresh);
-    } catch (e) {
-      setResult(e instanceof Error ? e.message : 'Generation failed.');
-    } finally {
-      setState('done');
-    }
-  }
-
-  const label =
-    state === 'running'
-      ? '⏳ Generating content for all topics…'
-      : result !== null
-        ? `✅ ${result}`
-        : 'Pre-generate theory, quizzes, and exercises for every topic at once.';
-
-  return (
-    <div className="learn-generate-all-bar">
-      <span className="learn-generate-all-bar__text">{label}</span>
-      <button
-        className="learn-generate-all-bar__btn"
-        disabled={state === 'running'}
-        type="button"
-        onClick={() => void run()}
-      >
-        {state === 'running' ? 'Generating…' : 'Generate All Content'}
-      </button>
-    </div>
-  );
-}
-
 export function LearnPageClient() {
   const [phase, setPhase] = useState<Phase>('loading');
   const [plans, setPlans] = useState<PlanSummary[]>([]);
@@ -163,27 +114,20 @@ export function LearnPageClient() {
     );
   }
 
-  const banner = activePlan ? (
-    <GenerateAllBar planId={activePlan.id} onPlanRefreshed={setActivePlan} />
-  ) : null;
-
   return (
-    <>
-      {banner}
-      <LearnPageView
-        activePlan={activePlan}
-        activeTopic={activeTopic}
-        activeTask={activeTask}
-        quizScore={quizScore}
-        quizTotal={quizTotal}
-        view={view}
-        onNavigate={setView}
-        onNewPlan={() => setPhase('courses')}
-        onNextTopic={handleNextTopic}
-        onQuizComplete={handleQuizComplete}
-        onSelectTask={handleSelectTask}
-        onSelectTopic={handleSelectTopic}
-      />
-    </>
+    <LearnPageView
+      activePlan={activePlan}
+      activeTopic={activeTopic}
+      activeTask={activeTask}
+      quizScore={quizScore}
+      quizTotal={quizTotal}
+      view={view}
+      onNavigate={setView}
+      onNewPlan={() => setPhase('courses')}
+      onNextTopic={handleNextTopic}
+      onQuizComplete={handleQuizComplete}
+      onSelectTask={handleSelectTask}
+      onSelectTopic={handleSelectTopic}
+    />
   );
 }

@@ -262,19 +262,19 @@ function TheoryMain({
     setGenError(null);
   }, [activeTopic?.id, activeTopic?.explanationMd]);
 
-  // Auto-generate when navigating here with no content
-  useEffect(() => {
-    if (!activeTopic?.id || explanation !== null || isGenerating) return;
+  async function generate() {
+    if (!activeTopic?.id || isGenerating) return;
     setIsGenerating(true);
-    void api
-      .explainTopic(activeTopic.id)
-      .then(({ explanationMd }) => setExplanation(explanationMd))
-      .catch((e: unknown) =>
-        setGenError(e instanceof Error ? e.message : 'Failed to generate explanation'),
-      )
-      .finally(() => setIsGenerating(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTopic?.id]);
+    setGenError(null);
+    try {
+      const { explanationMd } = await api.explainTopic(activeTopic.id);
+      setExplanation(explanationMd);
+    } catch (e) {
+      setGenError(e instanceof Error ? e.message : 'Failed to generate explanation');
+    } finally {
+      setIsGenerating(false);
+    }
+  }
 
   return (
     <main className="learn-main">
@@ -292,14 +292,13 @@ function TheoryMain({
         {!isGenerating && genError && (
           <div className="theory-generate-card">
             <p style={{ color: 'var(--error)' }}>{genError}</p>
-            <Button
-              onClick={() => {
-                setGenError(null);
-                setExplanation(null);
-              }}
-            >
-              Retry
-            </Button>
+            <Button onClick={() => void generate()}>Retry</Button>
+          </div>
+        )}
+        {!isGenerating && !genError && !explanation && (
+          <div className="theory-generate-card">
+            <p>No theory content yet.</p>
+            <Button onClick={() => void generate()}>Generate Theory</Button>
           </div>
         )}
         {!isGenerating && !genError && explanation && (
@@ -373,31 +372,25 @@ function QuizMain({
           setAttempt(a);
         }
       })
-      .catch(() => {
-        /* no quiz yet — will auto-generate below */
-      })
+      .catch(() => {})
       .finally(() => setIsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTopic?.id]);
 
-  // Auto-generate when no quiz found after load
-  useEffect(() => {
-    if (isLoading || quiz !== null || isGenerating || !activeTopic?.id) return;
+  async function generateQuiz() {
+    if (!activeTopic?.id || isGenerating) return;
     setIsGenerating(true);
-    void (async () => {
-      try {
-        const newQuiz = await api.createTopicQuiz(activeTopic.id);
-        setQuiz(newQuiz);
-        const a = await api.startQuizAttempt(newQuiz.id);
-        setAttempt(a);
-      } catch {
-        /* silent */
-      } finally {
-        setIsGenerating(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, quiz, activeTopic?.id]);
+    try {
+      const newQuiz = await api.createTopicQuiz(activeTopic.id);
+      setQuiz(newQuiz);
+      const a = await api.startQuizAttempt(newQuiz.id);
+      setAttempt(a);
+    } catch {
+      /* ignore */
+    } finally {
+      setIsGenerating(false);
+    }
+  }
 
   async function handleSelectAnswer(questionId: string, choice: string) {
     setAnswers((prev) => ({ ...prev, [questionId]: choice }));
@@ -443,6 +436,13 @@ function QuizMain({
         <div className="quiz-generate-card">
           <span className="plan-create-spinner" aria-hidden="true" />
           <p>{isGenerating ? 'Generating quiz questions…' : 'Loading quiz…'}</p>
+        </div>
+      )}
+
+      {!isLoading && !isGenerating && !quiz && (
+        <div className="quiz-generate-card">
+          <p>No quiz yet for this topic.</p>
+          <Button onClick={() => void generateQuiz()}>Generate Quiz</Button>
         </div>
       )}
 

@@ -48,9 +48,8 @@ describe('SetupOverview', () => {
     );
 
     expect(markup).toContain('Some connections need attention — fix them below to continue');
-    expect(markup).toContain('reach your guide');
-    expect(markup).toContain('Your practice folder is not connected yet');
-    expect(markup).toContain('Reconnect');
-    expect(markup).toContain('Fix Connection');
+    expect(markup).toContain('Disconnected');
+    expect(markup).toContain('Not set');
+    expect(markup).toContain('Configure');
   });
 });

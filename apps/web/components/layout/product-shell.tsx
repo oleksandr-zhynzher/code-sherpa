@@ -35,6 +35,9 @@ export function ProductShell({ activePath, children }: ProductShellProps): React
             </a>
           ))}
         </nav>
+        <div aria-hidden="true" className="product-shell__avatar">
+          OZ
+        </div>
       </header>
       <main className="product-shell__main">{children}</main>
     </div>

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import type { SetupState } from '../../lib/types';
-import { Button, Card, Pill, StatusBanner } from '../ui/design-system';
+import { Toggle } from '../ui/design-system';
 
 type SetupOverviewProps = Readonly<{
   error?: string | null;
@@ -13,6 +13,33 @@ function hasValue(value: string | null | undefined): boolean {
   return value !== null && value !== undefined && value.trim().length > 0;
 }
 
+const ITEMS = [
+  {
+    key: 'assistant',
+    icon: '🤖',
+    title: 'AI Assistant',
+    desc: 'The guide that answers questions and builds exercises',
+    href: '/setup/assistant',
+    btnLabel: 'Configure',
+  },
+  {
+    key: 'folder',
+    icon: '📁',
+    title: 'Practice Folder',
+    desc: 'Where your work and progress are saved',
+    href: '/setup/folder',
+    btnLabel: 'Configure',
+  },
+  {
+    key: 'preferences',
+    icon: '⚙️',
+    title: 'Preferences',
+    desc: 'Language, safety choices, and exercise settings',
+    href: '/setup/preferences',
+    btnLabel: 'Edit',
+  },
+] as const;
+
 export function SetupOverview({
   error = null,
   isLoading = false,
@@ -23,90 +50,90 @@ export function SetupOverview({
   const folderReady = hasValue(setup?.workspacePath);
   const setupReady = assistantReady && folderReady && !isLoading && error === null;
 
+  const statuses: Record<string, { label: string; ready: boolean }> = {
+    assistant: { label: assistantReady ? 'Connected' : 'Disconnected', ready: assistantReady },
+    folder: { label: folderReady ? 'Connected' : 'Not set', ready: folderReady },
+    preferences: { label: '2 preferences set', ready: true },
+  };
+
   return (
     <section className="setup-overview">
       <div className="setup-overview__header">
-        <p className="setup-preview__eyebrow">Get Set Up</p>
-        <h1>Connect what you need, then start learning</h1>
+        <h1>Get Set Up</h1>
+        <p>Connect what you need, then start learning</p>
       </div>
 
-      {setupReady ? (
-        <StatusBanner tone="success" title="All systems ready — you're good to go!">
-          Your guide and practice folder are connected.
-        </StatusBanner>
-      ) : (
-        <StatusBanner
-          tone={error === null ? 'warning' : 'danger'}
-          title={
-            error === null
-              ? 'Some connections need attention — fix them below to continue'
-              : 'We could not check setup status'
-          }
-        >
-          {error ?? 'Review each connection and follow the next step shown on the card.'}
-        </StatusBanner>
-      )}
-
-      <div className="setup-overview__cards">
-        <Card
-          title="AI Assistant"
-          description="The guide that answers questions and builds exercises"
-        >
-          <div className="setup-card__row">
-            <Pill tone={assistantReady ? 'success' : 'danger'}>
-              {assistantReady ? 'Connected' : 'Disconnected'}
-            </Pill>
-            <a className="cs-button cs-button--secondary" href="/setup#assistant">
-              {assistantReady ? 'Configure' : 'Reconnect'}
-            </a>
-          </div>
-          {assistantReady ? (
-            <p className="setup-card__hint">{assistantPath}</p>
-          ) : (
-            <p className="setup-card__error">
-              We couldn&apos;t reach your guide — check your CLI path or try again.
-            </p>
-          )}
-        </Card>
-
-        <Card title="Practice Folder" description="Where your work and progress are saved">
-          <div className="setup-card__row">
-            <Pill tone={folderReady ? 'success' : 'warning'}>
-              {folderReady ? 'Connected' : 'Needs attention'}
-            </Pill>
-            <a className="cs-button cs-button--secondary" href="/setup#practice-folder">
-              {folderReady ? 'Configure' : 'Fix Connection'}
-            </a>
-          </div>
-          {folderReady ? (
-            <p className="setup-card__hint">{setup?.repoUrl ?? setup?.workspacePath}</p>
-          ) : (
-            <p className="setup-card__error">Your practice folder is not connected yet.</p>
-          )}
-        </Card>
-
-        <Card title="Preferences" description="Language, safety choices, and exercise settings">
-          <div className="setup-card__row">
-            <Pill tone="success">Connected</Pill>
-            <a className="cs-button cs-button--secondary" href="/setup#preferences">
-              Edit
-            </a>
-          </div>
-          <p className="setup-card__hint">2 preferences set</p>
-        </Card>
+      <div className="setup-go-banner">
+        <span className="setup-go-banner__icon">{setupReady ? '✅' : error ? '⚠️' : '🔧'}</span>
+        <p className="setup-go-banner__text">
+          {setupReady
+            ? "All systems ready — you're good to go!"
+            : error
+              ? 'We could not check setup status'
+              : 'Some connections need attention — fix them below to continue'}
+        </p>
+        {setupReady && (
+          <a className="setup-go-banner__btn" href="/learn">
+            Go to Learning Space →
+          </a>
+        )}
       </div>
 
-      <div className="setup-overview__footer">
-        <div>
-          <strong>Need help?</strong>
-          <p>Everything is working now, but if something breaks, we have you covered.</p>
+      <div className="setup-items">
+        {ITEMS.map((item) => {
+          const status = statuses[item.key];
+          if (!status) return null;
+          return (
+            <div key={item.key} className="setup-item">
+              <div className="setup-item__icon">{item.icon}</div>
+              <div className="setup-item__info">
+                <h3>{item.title}</h3>
+                <p>{item.desc}</p>
+              </div>
+              <div className="setup-item__right">
+                <div className="setup-item__status">
+                  <span
+                    className="setup-item__status-dot"
+                    style={status.ready ? {} : { background: 'var(--warning)' }}
+                  />
+                  <p
+                    className="setup-item__status-text"
+                    style={status.ready ? {} : { color: 'var(--warning)' }}
+                  >
+                    {status.label}
+                  </p>
+                </div>
+                <a className="setup-item__btn" href={item.href}>
+                  {item.btnLabel}
+                </a>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="setup-prefs-section">
+        <h2>Your Preferences</h2>
+        <div className="setup-pref-row">
+          <span className="setup-pref-label">Exercise Language</span>
+          <span className="setup-chip">{setup?.exerciseLanguage ?? 'Python'}</span>
         </div>
+        <div className="setup-pref-row">
+          <span className="setup-pref-label">Ask before running checks</span>
+          <Toggle
+            id="safe-run-checks"
+            pressed={setup?.safeRunChecks ?? true}
+            onPressedChange={() => {}}
+            label="Ask before running checks"
+          />
+        </div>
+      </div>
+
+      <div className="setup-help">
+        <strong>Need help?</strong>
+        <p>Everything is working now, but if something breaks, we have you covered.</p>
         <a href="/setup#troubleshooting">View troubleshooting guide</a>
       </div>
-
-      <a className="setup-overview__continue" href="/learn">
-        <Button disabled={!setupReady}>Go to Learning Space</Button>
-      </a>
     </section>
   );
 }

@@ -497,6 +497,12 @@ export function registerRoutes(server: FastifyInstance): void {
     };
   });
 
+  server.post('/api/tasks/:id/mark-done', async (request) => {
+    const params = idParamsSchema.parse(request.params);
+    const task = server.codeSherpa.db.markTaskDone(params.id);
+    return { task };
+  });
+
   server.get('/api/tasks/:id/chat', async (request) => {
     const params = idParamsSchema.parse(request.params);
     server.codeSherpa.db.getTask(params.id);

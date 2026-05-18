@@ -14,6 +14,7 @@ interface SharedViewProps {
   activeTopic: TopicWithTasks | null;
   activeTask: Task | null;
   view: LearnView;
+  onMarkTaskDone: (taskId: string) => void;
   onNavigate: (view: LearnView) => void;
   onNewPlan: () => void;
   onSelectTopic: (idx: number) => void;
@@ -221,11 +222,13 @@ function ExerciseMain({
   activePlan,
   activeTopic,
   activeTask,
+  onMarkTaskDone,
   onNavigate,
 }: {
   activePlan: PlanDetail | null;
   activeTopic: TopicWithTasks | null;
   activeTask: Task | null;
+  onMarkTaskDone: (taskId: string) => void;
   onNavigate: (view: LearnView) => void;
 }) {
   const planTitle = activePlan?.title ?? DEFAULT_PLAN_TITLE;
@@ -233,6 +236,7 @@ function ExerciseMain({
   const taskTitle = activeTask?.title ?? 'Select a task';
   const taskDifficulty = activeTask?.difficulty ?? 'medium';
   const taskPrompt = activeTask?.promptMd ?? '';
+  const isDone = activeTask?.status === 'done' || activeTask?.status === 'passing';
   const [code, setCode] = useState('');
 
   useEffect(() => {
@@ -251,6 +255,21 @@ function ExerciseMain({
           <Pill tone={difficultyTone(taskDifficulty)}>
             {taskDifficulty.charAt(0).toUpperCase() + taskDifficulty.slice(1)}
           </Pill>
+          {isDone ? (
+            <span className="mark-as-read-btn mark-as-read-btn--done">
+              <CheckCircle2 aria-hidden="true" size={15} />
+              Completed
+            </span>
+          ) : (
+            <button
+              className="mark-as-read-btn"
+              type="button"
+              onClick={() => activeTask && onMarkTaskDone(activeTask.id)}
+            >
+              <CheckCircle2 aria-hidden="true" size={15} />
+              Mark as done
+            </button>
+          )}
         </div>
       </div>
 
@@ -800,6 +819,7 @@ export function LearnPageView({
   view,
   quizScore,
   quizTotal,
+  onMarkTaskDone,
   onNavigate,
   onNewPlan,
   onSelectTopic,
@@ -895,6 +915,7 @@ export function LearnPageView({
             activePlan={activePlan}
             activeTopic={activeTopic}
             activeTask={activeTask}
+            onMarkTaskDone={onMarkTaskDone}
             onNavigate={onNavigate}
           />
         )}

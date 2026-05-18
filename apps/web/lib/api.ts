@@ -72,6 +72,8 @@ export const api = {
       body: JSON.stringify({}),
       method: 'POST',
     }),
+  markTaskDone: (taskId: string) =>
+    request<Readonly<{ task: Task }>>(`/api/tasks/${taskId}/mark-done`, { method: 'POST' }),
   createLearningPath: (goal: string) =>
     request<LearningPathDetail>('/api/paths', {
       body: JSON.stringify({ goal }),

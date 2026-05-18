@@ -1873,6 +1873,13 @@ fieldset.setup-field {
   border-color: var(--accent-primary);
 }
 
+.mark-as-read-btn--done {
+  color: var(--accent-success, #22c55e);
+  border-color: var(--accent-success, #22c55e);
+  cursor: default;
+  pointer-events: none;
+}
+
 /* Subtopic semantic icons */
 .subtopic-icon {
   color: var(--foreground-muted);

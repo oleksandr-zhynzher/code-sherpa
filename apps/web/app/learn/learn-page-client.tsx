@@ -71,6 +71,25 @@ export function LearnPageClient() {
     setView('results');
   }
 
+  async function handleMarkTaskDone(taskId: string) {
+    try {
+      const { task } = await api.markTaskDone(taskId);
+      // Update the task status in-memory so sidebar checkmark updates immediately
+      setActivePlan((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          topics: prev.topics.map((t) => ({
+            ...t,
+            tasks: t.tasks.map((tk) => (tk.id === task.id ? { ...tk, status: task.status } : tk)),
+          })),
+        };
+      });
+    } catch {
+      // Non-critical — ignore
+    }
+  }
+
   function handleNextTopic() {
     const nextIdx = activeTopicIdx + 1;
     if (activePlan && nextIdx < activePlan.topics.length) {
@@ -122,6 +141,7 @@ export function LearnPageClient() {
       quizScore={quizScore}
       quizTotal={quizTotal}
       view={view}
+      onMarkTaskDone={(taskId) => void handleMarkTaskDone(taskId)}
       onNavigate={setView}
       onNewPlan={() => setPhase('courses')}
       onNextTopic={handleNextTopic}

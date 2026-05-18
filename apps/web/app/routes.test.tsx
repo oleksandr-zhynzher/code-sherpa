@@ -24,8 +24,7 @@ describe('app routes', () => {
 
     expect(setupMarkup).toContain('Connect what you need');
     expect(setupMarkup).toContain('AI Assistant');
-    expect(learnMarkup).toContain('Continue where you left off');
-    expect(learnMarkup).toContain('Two Sum');
-    expect(learnMarkup).toContain('All systems ready');
+    // LearnPage starts in loading state (client-side data fetch)
+    expect(learnMarkup).toContain('Loading your plans');
   });
 });

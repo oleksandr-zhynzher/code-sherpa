@@ -1,9 +1,23 @@
 import type { ReactNode } from 'react';
 
-import type { LearnView } from '../../lib/types';
+import type { LearnView, PlanDetail, Task } from '../../lib/types';
 import { Button, Logo, Pill, ProgressBar, Tabs } from '../ui/design-system';
 
-const topics = [
+type TopicWithTasks = PlanDetail['topics'][number];
+
+type Props = {
+  activePlan?: PlanDetail | null;
+  activeTopic?: TopicWithTasks | null;
+  activeTask?: Task | null;
+  onNavigate?: (view: LearnView) => void;
+  onNewPlan?: () => void;
+  onSelectTask?: (taskIdx: number) => void;
+  onSelectTopic?: (topicIdx: number) => void;
+};
+
+// ─── Mock fallback data (used when no real plan is loaded) ───────────────────
+
+const mockTopics = [
   { id: 'arrays-basics', label: 'Arrays Basics', status: 'done' },
   { id: 'linked-lists', label: 'Linked Lists', status: 'done' },
   { id: 'arrays-hash-maps', label: 'Arrays & Hash Maps', status: 'active' },
@@ -22,9 +36,36 @@ const codeLines = [
   '        seen[num] = i',
 ];
 
-type Props = { onNavigate?: (view: LearnView) => void };
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-export function LearningWorkspace({ onNavigate }: Props): ReactNode {
+function difficultyTone(d: string): 'success' | 'warning' | 'danger' {
+  if (d === 'easy') return 'success';
+  if (d === 'hard') return 'danger';
+  return 'warning';
+}
+
+export function LearningWorkspace({
+  activePlan,
+  activeTopic,
+  activeTask,
+  onNavigate,
+  onNewPlan,
+  onSelectTask,
+  onSelectTopic,
+}: Props): ReactNode {
+  const hasRealData = activePlan !== null && activePlan !== undefined;
+
+  const doneTasks = activePlan?.doneTasks ?? 5;
+  const totalTasks = activePlan?.totalTasks ?? 12;
+  const planTitle = activePlan?.title ?? 'Data Structures Fundamentals';
+
+  const topicTitle = activeTopic?.title ?? 'Arrays & Hash Maps';
+  const taskTitle = activeTask?.title ?? 'Two Sum';
+  const taskDifficulty = activeTask?.difficulty ?? 'medium';
+  const taskPrompt =
+    activeTask?.promptMd ??
+    'Given an array of integers and a target sum, return the indices of two numbers that add up to the target.\n\n**Example**\n\nInput: nums = [2, 7, 11, 15], target = 9\n\nOutput: [0, 1] (because 2 + 7 = 9)';
+
   return (
     <section className="learn-space" aria-label="Your learning space">
       <header className="learn-topbar">
@@ -52,74 +93,148 @@ export function LearningWorkspace({ onNavigate }: Props): ReactNode {
         <aside className="learn-sidebar">
           <div className="learn-sidebar__header">
             <p className="learn-kicker">Your Paths</p>
-            <Button variant="secondary">New</Button>
+            <Button variant="secondary" onClick={onNewPlan}>
+              New
+            </Button>
           </div>
 
           <button
             className="learn-continue-card"
-            onClick={() => onNavigate?.('exercise')}
             type="button"
+            onClick={() => onNavigate?.('exercise')}
           >
             <div className="learn-continue-card__icon" aria-hidden="true">
               ▶
             </div>
             <div>
               <p className="learn-continue-card__action">Continue where you left off</p>
-              <p className="learn-continue-card__topic">Arrays &amp; Hash Maps</p>
+              <p className="learn-continue-card__topic">{topicTitle}</p>
             </div>
           </button>
 
-          <div className="learn-path-row active">
-            <div className="learn-path-row__header">
-              <strong className="learn-path-row__title">Data Structures Fundamentals</strong>
-              <span className="learn-path-row__meta">5 of 12 camps</span>
+          {hasRealData ? (
+            <div className="learn-path-row active">
+              <div className="learn-path-row__header">
+                <strong className="learn-path-row__title">{planTitle}</strong>
+                <span className="learn-path-row__meta">
+                  {doneTasks} of {totalTasks} tasks
+                </span>
+              </div>
+              <ProgressBar label={`${planTitle} progress`} max={totalTasks} value={doneTasks} />
             </div>
-            <ProgressBar label="Data Structures Fundamentals progress" max={12} value={5} />
-          </div>
+          ) : (
+            <div className="learn-path-row active">
+              <div className="learn-path-row__header">
+                <strong className="learn-path-row__title">Data Structures Fundamentals</strong>
+                <span className="learn-path-row__meta">5 of 12 camps</span>
+              </div>
+              <ProgressBar label="Data Structures Fundamentals progress" max={12} value={5} />
+            </div>
+          )}
 
           <div className="learn-topics-section">
             <p className="learn-topics-section__label">Topics</p>
-            {topics.map((topic) => (
-              <div key={topic.id}>
-                <button
-                  className={`learn-topic-item${topic.status === 'active' ? ' active' : ''}`}
-                  type="button"
-                >
-                  <span
-                    className={`learn-topic-item__icon${
-                      topic.status === 'done'
-                        ? ' learn-topic-item__icon--done'
-                        : ' learn-topic-item__icon--circle'
-                    }`}
-                    aria-hidden="true"
-                  >
-                    {topic.status === 'done' ? '✓' : ''}
-                  </span>
-                  <span className="learn-topic-item__name">{topic.label}</span>
-                </button>
-                {topic.status === 'active' && (
-                  <div className="learn-topic-subtopics">
+            {hasRealData
+              ? activePlan.topics.map((topic, topicIdx) => {
+                  const isActive = activeTopic?.id === topic.id;
+                  return (
+                    <div key={topic.id}>
+                      <button
+                        className={`learn-topic-item${isActive ? ' active' : ''}`}
+                        type="button"
+                        onClick={() => onSelectTopic?.(topicIdx)}
+                      >
+                        <span
+                          className={`learn-topic-item__icon${
+                            topic.status === 'done'
+                              ? ' learn-topic-item__icon--done'
+                              : ' learn-topic-item__icon--circle'
+                          }`}
+                          aria-hidden="true"
+                        >
+                          {topic.status === 'done' ? '✓' : ''}
+                        </span>
+                        <span className="learn-topic-item__name">{topic.title}</span>
+                      </button>
+                      {isActive && (
+                        <div className="learn-topic-subtopics">
+                          <button
+                            className="learn-topic-subtopic"
+                            type="button"
+                            onClick={() => onNavigate?.('theory')}
+                          >
+                            Theory
+                          </button>
+                          <button className="learn-topic-subtopic active" type="button">
+                            Exercises
+                          </button>
+                          <button
+                            className="learn-topic-subtopic"
+                            type="button"
+                            onClick={() => onNavigate?.('quiz')}
+                          >
+                            Quiz
+                          </button>
+                        </div>
+                      )}
+                      {isActive && topic.tasks.length > 1 && (
+                        <div className="learn-topic-subtopics">
+                          {topic.tasks.map((task, taskIdx) => (
+                            <button
+                              className={`learn-topic-subtopic${activeTask?.id === task.id ? ' active' : ''}`}
+                              key={task.id}
+                              type="button"
+                              onClick={() => onSelectTask?.(taskIdx)}
+                            >
+                              {task.title}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              : mockTopics.map((topic) => (
+                  <div key={topic.id}>
                     <button
-                      className="learn-topic-subtopic"
-                      onClick={() => onNavigate?.('theory')}
+                      className={`learn-topic-item${topic.status === 'active' ? ' active' : ''}`}
                       type="button"
                     >
-                      Theory
+                      <span
+                        className={`learn-topic-item__icon${
+                          topic.status === 'done'
+                            ? ' learn-topic-item__icon--done'
+                            : ' learn-topic-item__icon--circle'
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {topic.status === 'done' ? '✓' : ''}
+                      </span>
+                      <span className="learn-topic-item__name">{topic.label}</span>
                     </button>
-                    <button className="learn-topic-subtopic active" type="button">
-                      Exercises
-                    </button>
-                    <button
-                      className="learn-topic-subtopic"
-                      onClick={() => onNavigate?.('quiz')}
-                      type="button"
-                    >
-                      Quiz
-                    </button>
+                    {topic.status === 'active' && (
+                      <div className="learn-topic-subtopics">
+                        <button
+                          className="learn-topic-subtopic"
+                          type="button"
+                          onClick={() => onNavigate?.('theory')}
+                        >
+                          Theory
+                        </button>
+                        <button className="learn-topic-subtopic active" type="button">
+                          Exercises
+                        </button>
+                        <button
+                          className="learn-topic-subtopic"
+                          type="button"
+                          onClick={() => onNavigate?.('quiz')}
+                        >
+                          Quiz
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+                ))}
           </div>
         </aside>
 
@@ -127,34 +242,37 @@ export function LearningWorkspace({ onNavigate }: Props): ReactNode {
         <main className="learn-main">
           <div className="learn-exercise-header">
             <p className="learn-exercise-header__breadcrumb">
-              Data Structures / Arrays &amp; Hash Maps / Exercise 3
+              {planTitle} / {topicTitle} / {taskTitle}
             </p>
             <div className="learn-exercise-header__title-row">
-              <h1 className="learn-exercise-header__title">Two Sum</h1>
-              <Pill tone="warning">Medium</Pill>
+              <h1 className="learn-exercise-header__title">{taskTitle}</h1>
+              <Pill tone={difficultyTone(taskDifficulty)}>
+                {taskDifficulty.charAt(0).toUpperCase() + taskDifficulty.slice(1)}
+              </Pill>
             </div>
           </div>
 
           <div className="learn-exercise-desc">
-            <p>
-              Given an array of integers and a target sum, return the indices of two numbers that
-              add up to the target.
-            </p>
-            <div className="learn-example">
-              <strong>Example</strong>
-              <p>Input: nums = [2, 7, 11, 15], target = 9</p>
-              <p>Output: [0, 1] (because 2 + 7 = 9)</p>
-            </div>
+            {taskPrompt.split('\n\n').map((para, i) => {
+              if (para.startsWith('**') && para.endsWith('**')) {
+                return (
+                  <div className="learn-example" key={i}>
+                    <strong>{para.replaceAll('**', '')}</strong>
+                  </div>
+                );
+              }
+              return <p key={i}>{para.replaceAll('**', '')}</p>;
+            })}
           </div>
 
           <div className="learn-editor-header">
             <h2>Your Solution</h2>
-            <span className="learn-editor-lang">Python</span>
+            <span className="learn-editor-lang">{activeTask?.language ?? 'Python'}</span>
           </div>
 
           <div className="learn-code-editor">
             <div className="learn-code-editor__label">
-              <span>solution.py</span>
+              <span>solution.{activeTask?.language === 'typescript' ? 'ts' : 'py'}</span>
             </div>
             <pre aria-label="Your Solution">
               {codeLines.map((line, i) => (

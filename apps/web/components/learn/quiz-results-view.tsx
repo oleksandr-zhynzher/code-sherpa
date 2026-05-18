@@ -1,9 +1,21 @@
 import type { ReactNode } from 'react';
 
-import type { LearnView } from '../../lib/types';
+import type { LearnView, PlanDetail, Task } from '../../lib/types';
 import { Button, Logo, Pill, ProgressBar, Tabs } from '../ui/design-system';
 
-const topics = [
+type TopicWithTasks = PlanDetail['topics'][number];
+
+type Props = {
+  activePlan?: PlanDetail | null;
+  activeTopic?: TopicWithTasks | null;
+  activeTask?: Task | null;
+  onNavigate?: (view: LearnView) => void;
+  onNewPlan?: () => void;
+  onSelectTopic?: (idx: number) => void;
+  onSelectTask?: (idx: number) => void;
+};
+
+const mockTopics = [
   { id: 'arrays-basics', label: 'Arrays Basics', status: 'done' },
   { id: 'linked-lists', label: 'Linked Lists', status: 'done' },
   { id: 'arrays-hash-maps', label: 'Arrays & Hash Maps', status: 'active' },
@@ -16,9 +28,16 @@ const performance = [
   { correct: '3 / 5 correct', label: 'Hash Map Operations', value: 3 },
 ];
 
-type Props = { onNavigate?: (view: LearnView) => void };
-
-export function QuizResultsView({ onNavigate }: Props): ReactNode {
+export function QuizResultsView({
+  activePlan,
+  activeTopic,
+  onNavigate,
+  onNewPlan,
+  onSelectTopic,
+}: Props): ReactNode {
+  const hasRealData = activePlan !== null && activePlan !== undefined;
+  const planTitle = activePlan?.title ?? 'Data Structures';
+  const topicTitle = activeTopic?.title ?? 'Arrays & Hash Maps';
   return (
     <section className="learn-space" id="quiz-results" aria-label="Learning Space quiz results">
       <header className="learn-topbar">
@@ -46,7 +65,9 @@ export function QuizResultsView({ onNavigate }: Props): ReactNode {
         <aside className="learn-sidebar">
           <div className="learn-sidebar__header">
             <p className="learn-kicker">Your Paths</p>
-            <Button variant="secondary">New</Button>
+            <Button variant="secondary" onClick={onNewPlan}>
+              New
+            </Button>
           </div>
 
           <button className="learn-continue-card success" type="button">
@@ -61,55 +82,101 @@ export function QuizResultsView({ onNavigate }: Props): ReactNode {
 
           <div className="learn-path-row active">
             <div className="learn-path-row__header">
-              <strong className="learn-path-row__title">Data Structures</strong>
-              <span className="learn-path-row__meta">6 topics</span>
+              <strong className="learn-path-row__title">{planTitle}</strong>
+              <span className="learn-path-row__meta">{activePlan?.topics.length ?? 6} topics</span>
             </div>
-            <ProgressBar label="Data Structures quiz score" max={10} value={7} />
+            <ProgressBar label={`${planTitle} quiz score`} max={10} value={7} />
           </div>
 
           <div className="learn-topics-section">
             <p className="learn-topics-section__label">Topics</p>
-            {topics.map((topic) => (
-              <div key={topic.id}>
-                <button
-                  className={`learn-topic-item${topic.status === 'active' ? ' active' : ''}`}
-                  type="button"
-                >
-                  <span
-                    className={`learn-topic-item__icon${
-                      topic.status === 'done'
-                        ? ' learn-topic-item__icon--done'
-                        : ' learn-topic-item__icon--circle'
-                    }`}
-                    aria-hidden="true"
-                  >
-                    {topic.status === 'done' ? '✓' : ''}
-                  </span>
-                  <span className="learn-topic-item__name">{topic.label}</span>
-                </button>
-                {topic.status === 'active' && (
-                  <div className="learn-topic-subtopics">
+            {hasRealData
+              ? activePlan.topics.map((topic, topicIdx) => {
+                  const isActive = activeTopic?.id === topic.id;
+                  return (
+                    <div key={topic.id}>
+                      <button
+                        className={`learn-topic-item${isActive ? ' active' : ''}`}
+                        type="button"
+                        onClick={() => onSelectTopic?.(topicIdx)}
+                      >
+                        <span
+                          className={`learn-topic-item__icon${
+                            topic.status === 'done'
+                              ? ' learn-topic-item__icon--done'
+                              : ' learn-topic-item__icon--circle'
+                          }`}
+                          aria-hidden="true"
+                        >
+                          {topic.status === 'done' ? '✓' : ''}
+                        </span>
+                        <span className="learn-topic-item__name">{topic.title}</span>
+                      </button>
+                      {isActive && (
+                        <div className="learn-topic-subtopics">
+                          <button
+                            className="learn-topic-subtopic"
+                            type="button"
+                            onClick={() => onNavigate?.('theory')}
+                          >
+                            Theory
+                          </button>
+                          <button
+                            className="learn-topic-subtopic"
+                            type="button"
+                            onClick={() => onNavigate?.('exercise')}
+                          >
+                            Exercises
+                          </button>
+                          <button className="learn-topic-subtopic active" type="button">
+                            Quiz
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              : mockTopics.map((topic) => (
+                  <div key={topic.id}>
                     <button
-                      className="learn-topic-subtopic"
-                      onClick={() => onNavigate?.('theory')}
+                      className={`learn-topic-item${topic.status === 'active' ? ' active' : ''}`}
                       type="button"
                     >
-                      Theory
+                      <span
+                        className={`learn-topic-item__icon${
+                          topic.status === 'done'
+                            ? ' learn-topic-item__icon--done'
+                            : ' learn-topic-item__icon--circle'
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {topic.status === 'done' ? '✓' : ''}
+                      </span>
+                      <span className="learn-topic-item__name">{topic.label}</span>
                     </button>
-                    <button
-                      className="learn-topic-subtopic"
-                      onClick={() => onNavigate?.('exercise')}
-                      type="button"
-                    >
-                      Exercises
-                    </button>
-                    <button className="learn-topic-subtopic active" type="button">
-                      Quiz — 7/10
-                    </button>
+                    {topic.status === 'active' && (
+                      <div className="learn-topic-subtopics">
+                        <button
+                          className="learn-topic-subtopic"
+                          type="button"
+                          onClick={() => onNavigate?.('theory')}
+                        >
+                          Theory
+                        </button>
+                        <button
+                          className="learn-topic-subtopic"
+                          type="button"
+                          onClick={() => onNavigate?.('exercise')}
+                        >
+                          Exercises
+                        </button>
+                        <button className="learn-topic-subtopic active" type="button">
+                          Quiz — 7/10
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+                ))}
           </div>
         </aside>
 
@@ -117,7 +184,7 @@ export function QuizResultsView({ onNavigate }: Props): ReactNode {
         <main className="learn-main">
           <div className="quiz-header">
             <p className="quiz-header__breadcrumb">
-              Data Structures / Arrays &amp; Hash Maps / Quiz Results
+              {planTitle} / {topicTitle} / Quiz Results
             </p>
             <div className="quiz-header__title-row">
               <h1>Quiz Complete</h1>

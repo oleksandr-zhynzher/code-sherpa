@@ -323,6 +323,10 @@ function makeTaskIdNullableOnChatMessage(db: DatabaseSync): void {
   `);
 }
 
+function addAgentModelToSettings(db: DatabaseSync): void {
+  ensureColumn(db, 'settings', 'agent_model', 'TEXT');
+}
+
 const migrations: ReadonlyArray<Migration> = [
   {
     name: 'create-base-poc-schema',
@@ -358,6 +362,11 @@ const migrations: ReadonlyArray<Migration> = [
     name: 'make-task-id-nullable-on-chat-message',
     run: makeTaskIdNullableOnChatMessage,
     version: 7,
+  },
+  {
+    name: 'add-agent-model-to-settings',
+    run: addAgentModelToSettings,
+    version: 8,
   },
 ];
 

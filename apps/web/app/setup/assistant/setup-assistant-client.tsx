@@ -7,6 +7,7 @@ import type { SetupState } from '../../../lib/types';
 
 const defaultSetup: SetupState = {
   agentDriver: 'copilot',
+  agentModel: null,
   autoSaveProgress: true,
   claudePath: null,
   copilotPath: null,
@@ -23,6 +24,7 @@ type DriverOption = {
   id: 'claude' | 'copilot';
   installCmd: string;
   label: string;
+  models: ReadonlyArray<{ label: string; value: string }>;
   placeholder: string;
 };
 
@@ -34,6 +36,14 @@ const DRIVERS: DriverOption[] = [
     placeholder: 'e.g. /Users/you/.nvm/versions/node/v22/bin/copilot',
     hint: 'Run `which copilot` in your terminal to get the full path. Required when running via Docker.',
     installCmd: 'npm install -g @github/copilot-cli',
+    models: [
+      { label: 'Default (CLI default)', value: '' },
+      { label: 'GPT-4o', value: 'gpt-4o' },
+      { label: 'GPT-4o mini', value: 'gpt-4o-mini' },
+      { label: 'o1', value: 'o1' },
+      { label: 'o3-mini', value: 'o3-mini' },
+      { label: 'Claude 3.5 Sonnet', value: 'claude-3.5-sonnet' },
+    ],
   },
   {
     id: 'claude',
@@ -42,12 +52,19 @@ const DRIVERS: DriverOption[] = [
     placeholder: 'e.g. /usr/local/bin/claude',
     hint: 'Run `which claude` in your terminal to get the full path. Required when running via Docker.',
     installCmd: 'npm install -g @anthropic-ai/claude-cli',
+    models: [
+      { label: 'Default (CLI default)', value: '' },
+      { label: 'Claude Sonnet 4.5', value: 'claude-sonnet-4-5' },
+      { label: 'Claude Opus 4.5', value: 'claude-opus-4-5' },
+      { label: 'Claude Haiku 3.5', value: 'claude-haiku-3-5' },
+    ],
   },
 ];
 
 export function SetupAssistantClient() {
   const [setup, setSetup] = useState<SetupState>(defaultSetup);
   const [cliPath, setCliPath] = useState('');
+  const [model, setModel] = useState('');
   const [isTesting, setIsTesting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [testResult, setTestResult] = useState<{ message: string; ok: boolean } | null>(null);
@@ -59,17 +76,20 @@ export function SetupAssistantClient() {
     void api.getSetup().then((s) => {
       setSetup(s);
       setCliPath(s.agentDriver === 'claude' ? (s.claudePath ?? '') : (s.copilotPath ?? ''));
+      setModel(s.agentModel ?? '');
     });
   }, []);
 
   const selectDriver = (d: 'claude' | 'copilot') => {
     setSetup((prev) => ({ ...prev, agentDriver: d }));
     setCliPath(d === 'claude' ? (setup.claudePath ?? '') : (setup.copilotPath ?? ''));
+    setModel('');
     setTestResult(null);
   };
 
   const buildPayload = (): SetupState => ({
     ...setup,
+    agentModel: model.trim().length > 0 ? model.trim() : null,
     claudePath: driver === 'claude' ? cliPath || null : setup.claudePath,
     copilotPath: driver === 'copilot' ? cliPath || null : setup.copilotPath,
   });
@@ -137,6 +157,7 @@ export function SetupAssistantClient() {
             ))}
           </div>
         </fieldset>
+
         <div className="setup-field">
           <label htmlFor="cli-path">
             {driver === 'copilot' ? 'Copilot CLI' : 'Claude CLI'} Path{' '}
@@ -153,6 +174,31 @@ export function SetupAssistantClient() {
             }}
           />
           <p className="setup-field__hint">{currentDriver?.hint}</p>
+        </div>
+
+        {/* Model selector */}
+        <div className="setup-field">
+          <label htmlFor="model-select">
+            Model <span className="setup-field__optional">(optional)</span>
+          </label>
+          <select
+            id="model-select"
+            value={model}
+            onChange={(e) => {
+              setModel(e.target.value);
+              setTestResult(null);
+            }}
+          >
+            {currentDriver?.models.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          <p className="setup-field__hint">
+            Override the model used for AI responses. Leave as &ldquo;Default&rdquo; to use the
+            CLI&apos;s default model.
+          </p>
         </div>
 
         {/* Install hint */}

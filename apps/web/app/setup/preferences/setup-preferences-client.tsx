@@ -7,6 +7,7 @@ import type { SetupState } from '../../../lib/types';
 
 const defaultSetup: SetupState = {
   agentDriver: 'copilot',
+  agentModel: null,
   autoSaveProgress: true,
   claudePath: null,
   copilotPath: null,

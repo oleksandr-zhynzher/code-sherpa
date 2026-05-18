@@ -254,9 +254,10 @@ export type CodeSherpaDatabase = Readonly<{
   recordTaskRun: (id: string, passed: boolean) => Task;
   saveSetup: (
     input: Readonly<{
-      claudePath?: string | undefined;
       agentDriver: SetupState['agentDriver'];
+      agentModel?: string | null | undefined;
       autoSaveProgress: boolean;
+      claudePath?: string | undefined;
       copilotPath?: string | undefined;
       exerciseLanguage: SetupState['exerciseLanguage'];
       guideTone: SetupState['guideTone'];

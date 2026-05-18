@@ -23,6 +23,7 @@ export type CliProcessRunner = (
 
 type CliDriverOptions = Readonly<{
   executablePath?: string | null | undefined;
+  model?: string | null | undefined;
   runner?: CliProcessRunner | undefined;
   workspacePath: string;
 }>;
@@ -173,11 +174,13 @@ async function* runAsStream(run: () => Promise<AgentRunResult>): AsyncIterable<A
 export function createCopilotCliDriver(options: CliDriverOptions): AgentDriver {
   const command = normalizeExecutablePath(options.executablePath, defaultCopilotPath);
   const runner = options.runner ?? runCliProcess;
+  const modelArgs =
+    options.model && options.model.trim().length > 0 ? ['--model', options.model.trim()] : [];
   const run = async (input: AgentDriverRunInput, signal?: AbortSignal) =>
     await runChecked(
       runner,
       command,
-      ['-p', formatPrompt(input), ...copilotNoDirectToolArgs],
+      ['-p', formatPrompt(input), ...modelArgs, ...copilotNoDirectToolArgs],
       options.workspacePath,
       signal,
     );
@@ -189,7 +192,7 @@ export function createCopilotCliDriver(options: CliDriverOptions): AgentDriver {
         () =>
           runner(
             command,
-            ['-p', 'Reply with exactly: OK', ...copilotNoDirectToolArgs],
+            ['-p', 'Reply with exactly: OK', ...modelArgs, ...copilotNoDirectToolArgs],
             createCliProcessOptions(options.workspacePath, signal),
           ),
         'Copilot CLI responded successfully.',
@@ -202,6 +205,8 @@ export function createCopilotCliDriver(options: CliDriverOptions): AgentDriver {
 export function createClaudeCliDriver(options: CliDriverOptions): AgentDriver {
   const command = normalizeExecutablePath(options.executablePath, defaultClaudePath);
   const runner = options.runner ?? runCliProcess;
+  const modelArgs =
+    options.model && options.model.trim().length > 0 ? ['--model', options.model.trim()] : [];
   const run = async (input: AgentDriverRunInput, signal?: AbortSignal) =>
     await runChecked(
       runner,
@@ -209,6 +214,7 @@ export function createClaudeCliDriver(options: CliDriverOptions): AgentDriver {
       [
         '-p',
         formatPrompt(input),
+        ...modelArgs,
         '--output-format',
         'text',
         '--no-session-persistence',
@@ -244,6 +250,7 @@ export function createAgentDriverForSetup(
   }>,
 ): AgentDriver {
   const options = {
+    model: input.setup.agentModel,
     runner: input.runner,
     workspacePath: input.workspacePath,
   };

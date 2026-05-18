@@ -200,6 +200,7 @@ export function registerRoutes(server: FastifyInstance): void {
     );
     const setup = server.codeSherpa.db.saveSetup({
       agentDriver: input.agentDriver,
+      agentModel: input.agentModel,
       autoSaveProgress: input.autoSaveProgress,
       claudePath: input.claudePath,
       copilotPath: input.copilotPath,
@@ -239,6 +240,7 @@ export function registerRoutes(server: FastifyInstance): void {
     );
     const setup = server.codeSherpa.db.saveSetup({
       agentDriver: currentSetup.agentDriver,
+      agentModel: currentSetup.agentModel,
       autoSaveProgress: currentSetup.autoSaveProgress,
       claudePath: currentSetup.claudePath ?? undefined,
       copilotPath: currentSetup.copilotPath ?? undefined,

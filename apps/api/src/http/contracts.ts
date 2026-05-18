@@ -39,6 +39,7 @@ const optionalRepoUrlSchema = z.union([repoUrlValueSchema, z.null()]).optional()
 
 export const setupSchema = z.object({
   agentDriver: z.enum(['claude', 'copilot']).default('copilot'),
+  agentModel: z.string().max(100).nullable().optional(),
   autoSaveProgress: z.boolean().default(true),
   claudePath: optionalCliPathSchema,
   copilotPath: optionalCliPathSchema,

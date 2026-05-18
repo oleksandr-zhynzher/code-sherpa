@@ -20,6 +20,7 @@ const defaultGoal =
 const defaultWorkspacePath = './workspace';
 const defaultSetupState: SetupState = {
   agentDriver: 'copilot',
+  agentModel: null,
   autoSaveProgress: true,
   claudePath: null,
   copilotPath: null,

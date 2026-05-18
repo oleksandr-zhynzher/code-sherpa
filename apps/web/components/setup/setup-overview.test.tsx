@@ -6,6 +6,7 @@ import { SetupOverview } from './setup-overview';
 
 const baseSetup: SetupState = {
   agentDriver: 'copilot',
+  agentModel: null,
   autoSaveProgress: true,
   claudePath: null,
   copilotPath: null,

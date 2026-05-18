@@ -62,6 +62,7 @@ export type ResumeState = Readonly<{
 
 export type SetupState = Readonly<{
   agentDriver: 'claude' | 'copilot';
+  agentModel: string | null;
   autoSaveProgress: boolean;
   claudePath: string | null;
   copilotPath: string | null;

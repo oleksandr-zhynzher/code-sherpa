@@ -30,7 +30,7 @@ describe('database migrations', () => {
 
     runMigrations(db);
 
-    expect(getAppliedMigrationVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(getAppliedMigrationVersions(db)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     expect(listTables(db)).toEqual(
       expect.arrayContaining([
         'agent_session',
@@ -84,6 +84,7 @@ describe('database migrations', () => {
 
       expect(database.getSetup('/tmp/fallback')).toEqual({
         agentDriver: 'copilot',
+        agentModel: null,
         autoSaveProgress: true,
         claudePath: '/usr/local/bin/claude',
         copilotPath: null,

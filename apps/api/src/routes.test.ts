@@ -249,6 +249,7 @@ describe('POC data API', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       agentDriver: 'copilot',
+      agentModel: null,
       autoSaveProgress: false,
       claudePath: '/usr/local/bin/claude',
       copilotPath: '/usr/local/bin/copilot',

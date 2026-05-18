@@ -6,6 +6,7 @@ import { SetupConfiguration } from './setup-configuration';
 
 const setup: SetupState = {
   agentDriver: 'copilot',
+  agentModel: null,
   autoSaveProgress: true,
   claudePath: '/usr/local/bin/claude',
   copilotPath: '/usr/local/bin/copilot',

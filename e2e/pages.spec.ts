@@ -21,7 +21,9 @@ test.describe('Home Page', () => {
     await expect(page.getByRole('link', { name: 'Start Your Journey' })).toBeVisible();
 
     // Sections
-    await expect(page.getByRole('heading', { name: 'Built for learners who want to grow' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Built for learners who want to grow' }),
+    ).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Four steps to the summit' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'A guide, not a judge' })).toBeVisible();
 
@@ -49,7 +51,10 @@ test.describe('Home Page', () => {
 
   test('navigates to /setup from footer', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('navigation', { name: 'Footer navigation' }).getByRole('link', { name: 'About' }).click();
+    await page
+      .getByRole('navigation', { name: 'Footer navigation' })
+      .getByRole('link', { name: 'About' })
+      .click();
     await expect(page).toHaveURL('/setup');
   });
 });
@@ -170,7 +175,9 @@ test.describe('Learning Space', () => {
     await expect(quizSection).toBeVisible();
 
     // Actual question from quiz-view.tsx
-    await expect(page.getByText('What is the average time complexity of a hash map lookup operation?')).toBeVisible();
+    await expect(
+      page.getByText('What is the average time complexity of a hash map lookup operation?'),
+    ).toBeVisible();
     await expect(page.getByText('O(1) — Constant time')).toBeVisible();
 
     await page.screenshot({ path: 'e2e/screenshots/learn-quiz.png', fullPage: true });
@@ -184,7 +191,9 @@ test.describe('Learning Space', () => {
     await expect(quizResultsSection).toBeVisible();
 
     // h1 in main content area
-    await expect(page.getByRole('heading', { name: 'Quiz Complete', exact: true, level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Quiz Complete', exact: true, level: 1 }),
+    ).toBeVisible();
     await expect(page.getByText('You scored 7 out of 10')).toBeVisible();
 
     await page.screenshot({ path: 'e2e/screenshots/learn-quiz-results.png', fullPage: true });

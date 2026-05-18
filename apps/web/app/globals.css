@@ -1,25 +1,26 @@
 :root {
-  --accent-primary: #2f6f4f;
-  --accent-secondary: #d49a2f;
-  --accent-tertiary: #d7e8c8;
-  --border-subtle: #d8d2c6;
-  --error: #b33a32;
+  --accent-primary: #2d5e3a;
+  --accent-secondary: #4a8c5e;
+  --accent-tertiary: #a8ccaf;
+  --border-subtle: #d6ddd0;
+  --error: #cc3333;
   --font-body:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-data: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
-  --font-heading: Georgia, 'Times New Roman', serif;
+  --font-data: 'Geist Mono', 'JetBrains Mono', 'Fira Code', 'SFMono-Regular', Consolas, monospace;
+  --font-heading: 'Playfair Display', Georgia, serif;
   --foreground-inverse: #ffffff;
-  --foreground-muted: #736f67;
-  --foreground-primary: #1d2a22;
-  --foreground-secondary: #465248;
-  --rounded-md: 1rem;
-  --rounded-sm: 0.375rem;
-  --success: #2f8f5b;
+  --foreground-muted: #8a9b8f;
+  --foreground-primary: #1b3a28;
+  --foreground-secondary: #4a6b52;
+  --rounded-lg: 12px;
+  --rounded-md: 8px;
+  --rounded-sm: 4px;
+  --success: #2d8b4a;
   --surface-card: #ffffff;
-  --surface-input: #fbfaf7;
+  --surface-input: #eceae3;
   --surface-inverse: #1b3a28;
-  --surface-primary: #f5f2eb;
-  --warning: #c6842c;
+  --surface-primary: #f5f3ee;
+  --warning: #d4920a;
   color: var(--foreground-primary);
   background: var(--surface-primary);
 }
@@ -42,10 +43,10 @@ textarea {
 
 button {
   min-height: 2.5rem;
-  border: 1px solid #b6c4d8;
-  border-radius: 0.625rem;
-  background: #10213f;
-  color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--rounded-sm);
+  background: var(--accent-primary);
+  color: var(--foreground-inverse);
   cursor: pointer;
   font-weight: 700;
   padding: 0.65rem 0.95rem;
@@ -301,7 +302,7 @@ button {
 }
 
 .product-shell__nav-link.active {
-  background: var(--surface-inverse);
+  background: var(--accent-primary);
   color: var(--foreground-inverse);
 }
 
@@ -574,9 +575,12 @@ button {
 }
 
 .home-section__header .home-eyebrow,
-.home-section--trail .home-eyebrow,
 .home-sherpa .home-eyebrow {
   color: var(--accent-primary);
+}
+
+.home-section--trail .home-eyebrow {
+  color: var(--accent-tertiary);
 }
 
 .home-section h2 {
@@ -618,15 +622,40 @@ button {
 
 .home-learner-card p,
 .home-step p,
-.home-sherpa__copy p,
-.home-footer p {
+.home-sherpa__copy p {
   margin: 0;
   color: var(--foreground-muted);
   line-height: 1.65;
 }
 
 .home-section--trail {
-  background: var(--surface-card);
+  background: var(--surface-inverse);
+  color: var(--foreground-inverse);
+}
+
+.home-section--trail .home-section__eyebrow {
+  color: var(--accent-tertiary);
+}
+
+.home-section--trail h2 {
+  color: var(--foreground-inverse);
+}
+
+.home-section--trail .home-step {
+  border-left-color: rgba(255, 255, 255, 0.15);
+}
+
+.home-section--trail .home-step strong {
+  color: var(--accent-tertiary);
+  font-family: var(--font-data);
+}
+
+.home-section--trail .home-step h3 {
+  color: var(--foreground-inverse);
+}
+
+.home-section--trail .home-step p {
+  color: rgba(255, 255, 255, 0.65);
 }
 
 .home-step {
@@ -666,12 +695,12 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-inverse);
   padding: 2rem clamp(1.25rem, 4vw, 3.75rem);
 }
 
 .home-footer strong {
-  color: var(--foreground-primary);
+  color: var(--foreground-inverse);
   font-family: var(--font-heading);
   font-size: 1.25rem;
 }
@@ -683,9 +712,13 @@ button {
 }
 
 .home-footer a {
-  color: var(--foreground-secondary);
+  color: rgba(255, 255, 255, 0.8);
   font-weight: 700;
   text-decoration: none;
+}
+
+.home-footer p {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 @media (min-width: 768px) {
@@ -712,8 +745,7 @@ button {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.75rem;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-card);
+  background: var(--surface-inverse);
   padding: 0.75rem 1.25rem;
 }
 
@@ -726,17 +758,36 @@ button {
 }
 
 .learn-topbar nav a {
-  color: var(--foreground-secondary);
+  color: var(--foreground-muted);
   font-weight: 700;
   text-decoration: none;
 }
 
 .learn-topbar nav a[aria-current='page'] {
-  color: var(--accent-primary);
+  color: var(--foreground-inverse);
+  font-weight: 600;
 }
 
 .learn-topbar__status {
   justify-content: flex-start;
+}
+
+.learn-topbar__status p,
+.learn-topbar__status small {
+  color: var(--accent-tertiary);
+  font-size: 0.8rem;
+}
+
+.learn-topbar .cs-logo {
+  color: var(--foreground-inverse);
+}
+
+.learn-topbar .cs-logo__mark {
+  fill: var(--foreground-inverse);
+}
+
+.learn-topbar .cs-logo__flag {
+  fill: var(--accent-secondary);
 }
 
 .learn-topbar__status span {

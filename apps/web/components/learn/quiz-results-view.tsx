@@ -13,6 +13,9 @@ type Props = {
   onNewPlan?: () => void;
   onSelectTopic?: (idx: number) => void;
   onSelectTask?: (idx: number) => void;
+  quizScore?: number | null;
+  quizTotal?: number | null;
+  onNextTopic?: () => void;
 };
 
 const mockTopics = [
@@ -34,10 +37,15 @@ export function QuizResultsView({
   onNavigate,
   onNewPlan,
   onSelectTopic,
+  quizScore,
+  quizTotal,
+  onNextTopic,
 }: Props): ReactNode {
   const hasRealData = activePlan !== null && activePlan !== undefined;
   const planTitle = activePlan?.title ?? 'Data Structures';
   const topicTitle = activeTopic?.title ?? 'Arrays & Hash Maps';
+  const score = quizScore ?? 7;
+  const total = quizTotal ?? 10;
   return (
     <section className="learn-space" id="quiz-results" aria-label="Learning Space quiz results">
       <header className="learn-topbar">
@@ -76,7 +84,9 @@ export function QuizResultsView({
             </div>
             <div>
               <p className="learn-continue-card__action">Quiz completed!</p>
-              <p className="learn-continue-card__topic">You scored 7 out of 10</p>
+              <p className="learn-continue-card__topic">
+                You scored {score} out of {total}
+              </p>
             </div>
           </button>
 
@@ -85,7 +95,7 @@ export function QuizResultsView({
               <strong className="learn-path-row__title">{planTitle}</strong>
               <span className="learn-path-row__meta">{activePlan?.topics.length ?? 6} topics</span>
             </div>
-            <ProgressBar label={`${planTitle} quiz score`} max={10} value={7} />
+            <ProgressBar label={`${planTitle} quiz score`} max={total} value={score} />
           </div>
 
           <div className="learn-topics-section">
@@ -193,18 +203,20 @@ export function QuizResultsView({
           </div>
 
           <div className="quiz-score-card">
-            <div className="quiz-score-card__score">7 / 10</div>
+            <div className="quiz-score-card__score">
+              {score} / {total}
+            </div>
             <p className="quiz-score-card__msg">
               Good progress! You&apos;re building solid foundations.
             </p>
 
             <div className="quiz-stats">
               <div className="quiz-stats__item">
-                <strong>7</strong>
+                <strong>{score}</strong>
                 <span>Correct</span>
               </div>
               <div className="quiz-stats__item">
-                <strong>3</strong>
+                <strong>{total - score}</strong>
                 <span>Incorrect</span>
               </div>
               <div className="quiz-stats__item">
@@ -229,7 +241,9 @@ export function QuizResultsView({
             <div className="quiz-controls">
               <Button variant="secondary">Review Answers</Button>
               <Button variant="ghost">Retry Quiz</Button>
-              <Button onClick={() => onNavigate?.('exercise')}>Continue to Next Topic</Button>
+              <Button onClick={() => onNextTopic?.() ?? onNavigate?.('exercise')}>
+                Continue to Next Topic
+              </Button>
             </div>
           </div>
         </main>

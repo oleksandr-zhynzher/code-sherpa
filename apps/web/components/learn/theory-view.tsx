@@ -1,5 +1,8 @@
-import type { ReactNode } from 'react';
+'use client';
 
+import { useEffect, useState } from 'react';
+
+import { api } from '../../lib/api';
 import type { LearnView, PlanDetail, Task } from '../../lib/types';
 import { Button, Logo, ProgressBar, Tabs } from '../ui/design-system';
 
@@ -34,12 +37,102 @@ export function TheoryView({
   onNavigate,
   onNewPlan,
   onSelectTopic,
-}: Props): ReactNode {
+}: Props) {
   const hasRealData = activePlan !== null && activePlan !== undefined;
   const planTitle = activePlan?.title ?? 'Data Structures Fundamentals';
   const topicTitle = activeTopic?.title ?? 'Arrays & Hash Maps';
   const doneTasks = activePlan?.doneTasks ?? 5;
   const totalTasks = activePlan?.totalTasks ?? 12;
+
+  const [explanation, setExplanation] = useState<string | null>(activeTopic?.explanationMd ?? null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>(
+    [],
+  );
+  const [inputVal, setInputVal] = useState('');
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+
+  useEffect(() => {
+    setExplanation(activeTopic?.explanationMd ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTopic?.id]);
+
+  useEffect(() => {
+    if (!activeTopic?.id) return;
+    async function loadThread() {
+      try {
+        const { thread } = await api.getChatThread('topic', activeTopic!.id);
+        setThreadId(thread.id);
+        const { messages: msgs } = await api.getThreadMessages(thread.id);
+        setMessages(
+          msgs.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.contentMd })),
+        );
+      } catch {
+        /* ignore */
+      }
+    }
+    void loadThread();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTopic?.id]);
+
+  async function handleGenerateExplanation() {
+    if (!activeTopic?.id) return;
+    setIsGenerating(true);
+    setGenError(null);
+    try {
+      const { explanationMd } = await api.explainTopic(activeTopic.id);
+      setExplanation(explanationMd);
+    } catch (e) {
+      setGenError(e instanceof Error ? e.message : 'Failed to generate explanation');
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  async function handleQuickAction(action: 'break_it_down' | 'explain_concept' | 'small_hint') {
+    if (!threadId || isChatLoading) return;
+    setIsChatLoading(true);
+    try {
+      const { userMessage, assistantMessage } = await api.postGuideAction(threadId, action, {
+        topicMd: explanation ?? activeTopic?.title ?? '',
+      });
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', content: userMessage.contentMd },
+        { role: 'assistant', content: assistantMessage.contentMd },
+      ]);
+    } catch {
+      /* ignore */
+    } finally {
+      setIsChatLoading(false);
+    }
+  }
+
+  async function handleChatSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const msg = inputVal.trim();
+    if (!msg || !threadId || isChatLoading) return;
+    setInputVal('');
+    setIsChatLoading(true);
+    try {
+      const { userMessage, assistantMessage } = await api.postGuideAction(
+        threadId,
+        'explain_concept',
+        { topicMd: msg },
+      );
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', content: userMessage.contentMd },
+        { role: 'assistant', content: assistantMessage.contentMd },
+      ]);
+    } catch {
+      /* ignore */
+    } finally {
+      setIsChatLoading(false);
+    }
+  }
 
   return (
     <section className="learn-space" id="theory" aria-label="Learning Space theory">
@@ -205,31 +298,43 @@ export function TheoryView({
             {planTitle} / {topicTitle} / Theory
           </p>
 
-          {hasRealData && activeTopic?.explanationMd ? (
+          {hasRealData && activeTopic ? (
             <article className="theory-article">
               <h1>{activeTopic.title}</h1>
-              <div className="theory-md-content">
-                {activeTopic.explanationMd.split('\n\n').map((para, i) => (
-                  <p key={i}>{para}</p>
-                ))}
-              </div>
-              <div className="theory-next">
-                <div>
-                  <p className="learn-kicker">Up next</p>
-                  <h2>Practice with Exercises</h2>
-                  <p>
-                    {activeTopic.tasks.length} exercises · {activeTopic.title}
-                  </p>
+              {explanation !== null ? (
+                <>
+                  <div className="theory-md-content">
+                    {explanation.split('\n\n').map((para, i) => (
+                      <p key={i}>{para}</p>
+                    ))}
+                  </div>
+                  <div className="theory-next">
+                    <div>
+                      <p className="learn-kicker">Up next</p>
+                      <h2>Practice with Exercises</h2>
+                      <p>
+                        {activeTopic.tasks.length} exercises · {activeTopic.title}
+                      </p>
+                    </div>
+                    <Button onClick={() => onNavigate?.('exercise')}>Exercise</Button>
+                    <button
+                      className="theory-next__quiz-link"
+                      type="button"
+                      onClick={() => onNavigate?.('quiz')}
+                    >
+                      Take the quiz instead
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="theory-generate-card">
+                  <p>No explanation yet for this topic.</p>
+                  {genError && <p style={{ color: 'var(--error)' }}>{genError}</p>}
+                  <Button onClick={handleGenerateExplanation} disabled={isGenerating}>
+                    {isGenerating ? 'Generating…' : 'Generate Explanation'}
+                  </Button>
                 </div>
-                <Button onClick={() => onNavigate?.('exercise')}>Exercise</Button>
-                <button
-                  className="theory-next__quiz-link"
-                  type="button"
-                  onClick={() => onNavigate?.('quiz')}
-                >
-                  Take the quiz instead
-                </button>
-              </div>
+              )}
             </article>
           ) : (
             <article className="theory-article">
@@ -322,36 +427,64 @@ export function TheoryView({
             />
           </div>
           <div className="learn-chat-area">
-            <div className="theory-selected">
-              <span>Selected from theory:</span>
-              <strong>chaining and open addressing</strong>
-            </div>
-            <article className="learn-message user">
-              <p>Can you explain what chaining and open addressing mean?</p>
-            </article>
-            <article className="learn-message assistant">
-              <p className="learn-message__label">Sherpa</p>
-              <p>
-                Sure! These are two strategies for handling hash collisions: Chaining keeps a list
-                at each bucket, while open addressing probes for the next empty slot in the array.
-              </p>
-            </article>
+            {!hasRealData ? (
+              <>
+                <div className="theory-selected">
+                  <span>Selected from theory:</span>
+                  <strong>chaining and open addressing</strong>
+                </div>
+                <article className="learn-message user">
+                  <p>Can you explain what chaining and open addressing mean?</p>
+                </article>
+                <article className="learn-message assistant">
+                  <p className="learn-message__label">Sherpa</p>
+                  <p>
+                    Sure! These are two strategies for handling hash collisions: Chaining keeps a
+                    list at each bucket, while open addressing probes for the next empty slot in the
+                    array.
+                  </p>
+                </article>
+              </>
+            ) : (
+              <>
+                {messages.map((m, i) => (
+                  <article key={i} className={`learn-message ${m.role}`}>
+                    {m.role === 'assistant' && <p className="learn-message__label">Sherpa</p>}
+                    <p>{m.content}</p>
+                  </article>
+                ))}
+                {isChatLoading && (
+                  <div className="learn-chat-loading">
+                    <span className="plan-create-spinner" aria-hidden="true" />
+                    Thinking…
+                  </div>
+                )}
+              </>
+            )}
           </div>
           <div className="learn-quick-actions">
-            <button type="button">Show me an example</button>
-            <button type="button">Compare both</button>
-            <button type="button">Go deeper</button>
+            <button type="button" onClick={() => void handleQuickAction('break_it_down')}>
+              Show me an example
+            </button>
+            <button type="button" onClick={() => void handleQuickAction('explain_concept')}>
+              Compare both
+            </button>
+            <button type="button" onClick={() => void handleQuickAction('small_hint')}>
+              Go deeper
+            </button>
           </div>
-          <div className="learn-chat-input-bar">
+          <form className="learn-chat-input-bar" onSubmit={(e) => void handleChatSubmit(e)}>
             <input
               aria-label="Ask your Sherpa anything"
               placeholder="Ask your Sherpa anything..."
               type="text"
+              value={inputVal}
+              onChange={(e) => setInputVal(e.target.value)}
             />
-            <button aria-label="Send message" className="learn-chat-input-bar__send" type="button">
+            <button aria-label="Send message" className="learn-chat-input-bar__send" type="submit">
               →
             </button>
-          </div>
+          </form>
         </aside>
       </div>
     </section>

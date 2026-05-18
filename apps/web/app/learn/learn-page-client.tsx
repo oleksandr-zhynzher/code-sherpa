@@ -19,6 +19,8 @@ export function LearnPageClient() {
   const [activeTopicIdx, setActiveTopicIdx] = useState(0);
   const [activeTaskIdx, setActiveTaskIdx] = useState(0);
   const [view, setView] = useState<LearnView>('exercise');
+  const [quizScore, setQuizScore] = useState<number | null>(null);
+  const [quizTotal, setQuizTotal] = useState<number | null>(null);
 
   useEffect(() => {
     async function loadPlans() {
@@ -64,6 +66,23 @@ export function LearnPageClient() {
     setView('exercise');
   }
 
+  function handleQuizComplete(score: number, total: number) {
+    setQuizScore(score);
+    setQuizTotal(total);
+    setView('results');
+  }
+
+  function handleNextTopic() {
+    const nextIdx = activeTopicIdx + 1;
+    if (activePlan && nextIdx < activePlan.topics.length) {
+      setActiveTopicIdx(nextIdx);
+      setActiveTaskIdx(0);
+      setQuizScore(null);
+      setQuizTotal(null);
+    }
+    setView('exercise');
+  }
+
   const activeTopic = activePlan?.topics[activeTopicIdx] ?? null;
   const activeTask = activeTopic?.tasks[activeTaskIdx] ?? null;
 
@@ -75,6 +94,7 @@ export function LearnPageClient() {
     onNewPlan: () => setPhase('create'),
     onSelectTask: handleSelectTask,
     onSelectTopic: handleSelectTopic,
+    onNextTopic: handleNextTopic,
   };
 
   if (phase === 'loading') {
@@ -97,7 +117,8 @@ export function LearnPageClient() {
   }
 
   if (view === 'theory') return <TheoryView {...sharedProps} />;
-  if (view === 'quiz') return <QuizView {...sharedProps} />;
-  if (view === 'results') return <QuizResultsView {...sharedProps} />;
+  if (view === 'quiz') return <QuizView {...sharedProps} onQuizComplete={handleQuizComplete} />;
+  if (view === 'results')
+    return <QuizResultsView {...sharedProps} quizScore={quizScore} quizTotal={quizTotal} />;
   return <LearningWorkspace {...sharedProps} />;
 }

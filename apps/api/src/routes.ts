@@ -540,6 +540,15 @@ export function registerRoutes(server: FastifyInstance): void {
     return { visualizations: server.codeSherpa.db.listVisualizations(params.id) };
   });
 
+  server.get('/api/topics/:id/quiz', async (request, reply) => {
+    const params = idParamsSchema.parse(request.params);
+    const quiz = server.codeSherpa.db.findQuizByTopicId(params.id);
+    if (!quiz) {
+      return reply.status(404).send({ error: { message: 'No quiz found for this topic' } });
+    }
+    return quiz;
+  });
+
   server.post('/api/topics/:id/quiz', async (request, reply) => {
     const params = idParamsSchema.parse(request.params);
     const topic = server.codeSherpa.db.getTopic(params.id);

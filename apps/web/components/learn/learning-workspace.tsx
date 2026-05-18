@@ -1,6 +1,9 @@
-import type { ReactNode } from 'react';
+'use client';
 
-import type { LearnView, PlanDetail, Task } from '../../lib/types';
+import { useEffect, useState } from 'react';
+
+import { api } from '../../lib/api';
+import type { GuideAction, LearnView, PlanDetail, Task } from '../../lib/types';
 import { Button, Logo, Pill, ProgressBar, Tabs } from '../ui/design-system';
 
 type TopicWithTasks = PlanDetail['topics'][number];
@@ -13,6 +16,7 @@ type Props = {
   onNewPlan?: () => void;
   onSelectTask?: (taskIdx: number) => void;
   onSelectTopic?: (topicIdx: number) => void;
+  onNextTopic?: () => void;
 };
 
 // ─── Mock fallback data (used when no real plan is loaded) ───────────────────
@@ -24,16 +28,6 @@ const mockTopics = [
   { id: 'stacks-queues', label: 'Stacks & Queues', status: 'upcoming' },
   { id: 'trees-graphs', label: 'Trees & Graphs', status: 'upcoming' },
   { id: 'sorting', label: 'Sorting Algorithms', status: 'upcoming' },
-];
-
-const codeLines = [
-  'def two_sum(nums, target):',
-  '    seen = {}',
-  '    for i, num in enumerate(nums):',
-  '        diff = target - num',
-  '        if diff in seen:',
-  '            return [seen[diff], i]',
-  '        seen[num] = i',
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -52,7 +46,7 @@ export function LearningWorkspace({
   onNewPlan,
   onSelectTask,
   onSelectTopic,
-}: Props): ReactNode {
+}: Props) {
   const hasRealData = activePlan !== null && activePlan !== undefined;
 
   const doneTasks = activePlan?.doneTasks ?? 5;
@@ -65,6 +59,73 @@ export function LearningWorkspace({
   const taskPrompt =
     activeTask?.promptMd ??
     'Given an array of integers and a target sum, return the indices of two numbers that add up to the target.\n\n**Example**\n\nInput: nums = [2, 7, 11, 15], target = 9\n\nOutput: [0, 1] (because 2 + 7 = 9)';
+
+  const [code, setCode] = useState('');
+  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
+  const [inputVal, setInputVal] = useState('');
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+
+  useEffect(() => {
+    if (!hasRealData || !activeTask?.id) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { thread } = await api.getChatThread('task', activeTask.id);
+        if (cancelled) return;
+        setThreadId(thread.id);
+        const { messages: msgs } = await api.getThreadMessages(thread.id);
+        setMessages(msgs.map((m) => ({ role: m.role, content: m.contentMd })));
+      } catch {
+        // no thread yet
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasRealData, activeTask?.id]);
+
+  const handleQuickAction = async (action: GuideAction) => {
+    if (!activeTask?.id) return;
+    setIsChatLoading(true);
+    try {
+      let tid = threadId;
+      if (!tid) {
+        const { thread } = await api.getChatThread('task', activeTask.id);
+        tid = thread.id;
+        setThreadId(tid);
+        const { messages: msgs } = await api.getThreadMessages(tid);
+        setMessages(msgs.map((m) => ({ role: m.role, content: m.contentMd })));
+      }
+      const { assistantMessage } = await api.postGuideAction(tid, action, {
+        topicMd: activeTask.title,
+      });
+      setMessages((prev) => [...prev, { role: 'assistant', content: assistantMessage.contentMd }]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const handleChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = inputVal.trim();
+    if (!text || !activeTask?.id) return;
+    setInputVal('');
+    setMessages((prev) => [...prev, { role: 'user', content: text }]);
+    setIsChatLoading(true);
+    try {
+      let tid = threadId;
+      if (!tid) {
+        const { thread } = await api.getChatThread('task', activeTask.id);
+        tid = thread.id;
+        setThreadId(tid);
+      }
+      const { message } = await api.postThreadMessage(tid, text);
+      setMessages((prev) => [...prev, { role: 'assistant', content: message.contentMd }]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
 
   return (
     <section className="learn-space" aria-label="Your learning space">
@@ -274,15 +335,13 @@ export function LearningWorkspace({
             <div className="learn-code-editor__label">
               <span>solution.{activeTask?.language === 'typescript' ? 'ts' : 'py'}</span>
             </div>
-            <pre aria-label="Your Solution">
-              {codeLines.map((line, i) => (
-                <span className="learn-code-line" key={i}>
-                  <span className="learn-code-line-num">{i + 1}</span>
-                  {line}
-                  {'\n'}
-                </span>
-              ))}
-            </pre>
+            <textarea
+              aria-label="Your Solution"
+              className="learn-code-editor__textarea"
+              spellCheck={false}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
           </div>
 
           <div className="learn-action-bar">
@@ -319,39 +378,69 @@ export function LearningWorkspace({
             />
           </div>
           <div className="learn-chat-area">
-            <article className="learn-message assistant">
-              <p className="learn-message__label">Sherpa</p>
-              <p>
-                Great approach using a hash map! You&apos;re storing each number&apos;s index as you
-                iterate — that gives you O(n) time complexity.
-              </p>
-            </article>
-            <article className="learn-message user">
-              <p>Why do I check &apos;if diff in seen&apos; before adding the current number?</p>
-            </article>
-            <article className="learn-message assistant">
-              <p className="learn-message__label">Sherpa</p>
-              <p>
-                Good question! If you added the number first, you might match a number with itself.
-                By checking before storing, you compare with a different earlier element.
-              </p>
-            </article>
+            {!hasRealData ? (
+              <>
+                <article className="learn-message assistant">
+                  <p className="learn-message__label">Sherpa</p>
+                  <p>
+                    Great approach using a hash map! You&apos;re storing each number&apos;s index as
+                    you iterate — that gives you O(n) time complexity.
+                  </p>
+                </article>
+                <article className="learn-message user">
+                  <p>
+                    Why do I check &apos;if diff in seen&apos; before adding the current number?
+                  </p>
+                </article>
+                <article className="learn-message assistant">
+                  <p className="learn-message__label">Sherpa</p>
+                  <p>
+                    Good question! If you added the number first, you might match a number with
+                    itself. By checking before storing, you compare with a different earlier
+                    element.
+                  </p>
+                </article>
+              </>
+            ) : (
+              <>
+                {messages.map((m, i) => (
+                  <article key={i} className={`learn-message ${m.role}`}>
+                    {m.role === 'assistant' && <p className="learn-message__label">Sherpa</p>}
+                    <p>{m.content}</p>
+                  </article>
+                ))}
+                {isChatLoading && (
+                  <div className="learn-chat-loading">
+                    <span className="plan-create-spinner" aria-hidden="true" />
+                    Thinking…
+                  </div>
+                )}
+              </>
+            )}
           </div>
           <div className="learn-quick-actions">
-            <button type="button">Small hint</button>
-            <button type="button">Explain error</button>
-            <button type="button">Break it down</button>
+            <button type="button" onClick={() => void handleQuickAction('small_hint')}>
+              Small hint
+            </button>
+            <button type="button" onClick={() => void handleQuickAction('explain_concept')}>
+              Explain error
+            </button>
+            <button type="button" onClick={() => void handleQuickAction('break_it_down')}>
+              Break it down
+            </button>
           </div>
-          <div className="learn-chat-input-bar">
+          <form className="learn-chat-input-bar" onSubmit={(e) => void handleChatSubmit(e)}>
             <input
               aria-label="Ask your Sherpa anything"
               placeholder="Ask your Sherpa anything..."
               type="text"
+              value={inputVal}
+              onChange={(e) => setInputVal(e.target.value)}
             />
-            <button aria-label="Send message" className="learn-chat-input-bar__send" type="button">
+            <button aria-label="Send message" className="learn-chat-input-bar__send" type="submit">
               →
             </button>
-          </div>
+          </form>
         </aside>
       </div>
     </section>

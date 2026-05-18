@@ -162,6 +162,9 @@ export const api = {
       `/api/tasks/${taskId}/visualizations`,
     ),
   getQuiz: (id: string) => request<Quiz>(`/api/quizzes/${id}`),
+  getTopicQuiz: (topicId: string) => request<Quiz | null>(`/api/topics/${topicId}/quiz`),
+  createTopicQuiz: (topicId: string) =>
+    request<Quiz>(`/api/topics/${topicId}/quiz`, { method: 'POST' }),
   startQuizAttempt: (quizId: string) =>
     request<QuizAttempt>(`/api/quizzes/${quizId}/attempts`, { method: 'POST' }),
   saveQuizAnswer: (attemptId: string, questionId: string, selectedAnswer: string) =>

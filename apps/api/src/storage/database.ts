@@ -275,6 +275,7 @@ export type CodeSherpaDatabase = Readonly<{
     }>,
   ) => Quiz;
   getQuiz: (id: string) => Quiz;
+  findQuizByTopicId: (topicId: string) => Quiz | null;
   startQuizAttempt: (quizId: string) => QuizAttempt;
   getQuizAttempt: (id: string) => QuizAttempt;
   saveQuizAnswer: (
@@ -992,6 +993,24 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
       const questionRows = db
         .prepare('SELECT * FROM quiz_question WHERE quiz_id = ? ORDER BY position ASC')
         .all(id) as unknown as ReadonlyArray<QuizQuestionRow>;
+
+      return {
+        id: quizRow.id,
+        topicId: quizRow.topic_id,
+        title: quizRow.title,
+        createdAt: quizRow.created_at,
+        questions: questionRows.map(mapQuizQuestion),
+      };
+    },
+    findQuizByTopicId: (topicId: string) => {
+      const quizRow = db
+        .prepare('SELECT * FROM quiz WHERE topic_id = ? LIMIT 1')
+        .get(topicId) as unknown as QuizRow | undefined;
+      if (quizRow === undefined) return null;
+
+      const questionRows = db
+        .prepare('SELECT * FROM quiz_question WHERE quiz_id = ? ORDER BY position ASC')
+        .all(quizRow.id) as unknown as ReadonlyArray<QuizQuestionRow>;
 
       return {
         id: quizRow.id,

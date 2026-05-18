@@ -85,6 +85,10 @@ export const api = {
     request<Readonly<{ explanationMd: string }>>(`/api/topics/${topicId}/explain`, {
       method: 'POST',
     }),
+  testAgentHealth: () =>
+    request<Readonly<{ driver: string; health: Readonly<{ message: string; ok: boolean }> }>>(
+      '/api/agent/health',
+    ),
   getSetup: () => request<SetupState>('/api/setup'),
   getTaskGeneration: (taskId: string) =>
     request<Readonly<{ generation: CodeGeneration | null }>>(`/api/tasks/${taskId}/generation`),

@@ -773,6 +773,92 @@ button {
 
 /* ─── Setup Folder Config (YS0El) ─── */
 
+/* ─── Setup Assistant driver selector ─── */
+
+.setup-field fieldset,
+fieldset.setup-field {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.375rem;
+}
+
+.setup-field__legend {
+  color: var(--foreground-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.125rem;
+}
+
+.setup-driver-selector {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.setup-driver-option {
+  display: grid;
+  gap: 0.25rem;
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--rounded-md);
+  background: var(--surface-primary);
+  cursor: pointer;
+  padding: 1rem 1.125rem;
+  text-align: left;
+  transition: border-color 0.15s;
+}
+
+.setup-driver-option:hover {
+  border-color: var(--accent-primary);
+}
+
+.setup-driver-option.selected {
+  border-color: var(--accent-primary);
+  background: #eef3fa;
+}
+
+.setup-driver-option__name {
+  color: var(--foreground-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.setup-driver-option__desc {
+  color: var(--foreground-secondary);
+  font-size: 0.8125rem;
+}
+
+.setup-field__optional {
+  color: var(--foreground-muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.setup-install-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--rounded-sm);
+  background: var(--surface-primary);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.8125rem;
+}
+
+.setup-install-hint__label {
+  color: var(--foreground-secondary);
+  white-space: nowrap;
+}
+
+.setup-install-hint code {
+  color: var(--accent-primary);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8125rem;
+  word-break: break-all;
+}
+
+/* ─── Setup Folder Config (YS0El) ─── */
+
 .setup-options {
   display: grid;
   gap: 1rem;

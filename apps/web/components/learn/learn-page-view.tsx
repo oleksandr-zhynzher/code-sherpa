@@ -1,5 +1,6 @@
 'use client';
 
+import { BookOpen, CheckCircle2, Code2, HelpCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { api } from '../../lib/api';
@@ -49,6 +50,25 @@ function RadioIcon({ active, size = 18 }: { active: boolean; size?: number }) {
   );
 }
 
+// ─── Subtopic Icon ────────────────────────────────────────────────────────────
+
+function SubtopicIcon({
+  type,
+  active,
+  done,
+}: {
+  type: 'exercise' | 'quiz' | 'theory';
+  active: boolean;
+  done?: boolean;
+}) {
+  const cls = `subtopic-icon${active ? ' subtopic-icon--active' : done ? ' subtopic-icon--done' : ''}`;
+  if (type === 'theory' && done)
+    return <CheckCircle2 aria-hidden="true" className={cls} size={16} />;
+  if (type === 'theory') return <BookOpen aria-hidden="true" className={cls} size={16} />;
+  if (type === 'exercise') return <Code2 aria-hidden="true" className={cls} size={16} />;
+  return <HelpCircle aria-hidden="true" className={cls} size={16} />;
+}
+
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
 interface SidebarProps {
@@ -56,6 +76,7 @@ interface SidebarProps {
   activeTopic: TopicWithTasks | null;
   activeTask: Task | null;
   view: LearnView;
+  readTopics: ReadonlySet<string>;
   onNavigate: (view: LearnView) => void;
   onNewPlan: () => void;
   onSelectTopic: (idx: number) => void;
@@ -67,6 +88,7 @@ function LearnSidebar({
   activeTopic,
   activeTask,
   view,
+  readTopics,
   onNavigate,
   onNewPlan,
   onSelectTopic,
@@ -130,7 +152,11 @@ function LearnSidebar({
                     type="button"
                     onClick={() => onNavigate('theory')}
                   >
-                    <RadioIcon active={view === 'theory'} size={16} />
+                    <SubtopicIcon
+                      active={view === 'theory'}
+                      done={readTopics.has(topic.id)}
+                      type="theory"
+                    />
                     Theory
                   </button>
 
@@ -140,7 +166,7 @@ function LearnSidebar({
                       type="button"
                       onClick={() => onNavigate('exercise')}
                     >
-                      <RadioIcon active={view === 'exercise'} size={16} />
+                      <SubtopicIcon active={view === 'exercise'} type="exercise" />
                       Exercises
                     </button>
                     {view === 'exercise' && topic.tasks.length > 1 && (
@@ -165,7 +191,7 @@ function LearnSidebar({
                     type="button"
                     onClick={() => onNavigate('quiz')}
                   >
-                    <RadioIcon active={view === 'quiz' || view === 'results'} size={16} />
+                    <SubtopicIcon active={view === 'quiz' || view === 'results'} type="quiz" />
                     Quiz
                   </button>
                 </div>
@@ -267,10 +293,12 @@ function TheoryMain({
   activePlan,
   activeTopic,
   onNavigate,
+  onMarkAsRead,
 }: {
   activePlan: PlanDetail | null;
   activeTopic: TopicWithTasks | null;
   onNavigate: (view: LearnView) => void;
+  onMarkAsRead: () => void;
 }) {
   const planTitle = activePlan?.title ?? DEFAULT_PLAN_TITLE;
   const topicTitle = activeTopic?.title ?? '';
@@ -306,6 +334,10 @@ function TheoryMain({
         </p>
         <div className="view-header__title-row">
           <h1 className="view-header__title">{topicTitle}</h1>
+          <button className="mark-as-read-btn" type="button" onClick={onMarkAsRead}>
+            <CheckCircle2 aria-hidden="true" size={15} />
+            Mark as read
+          </button>
         </div>
       </div>
       <div className="view-body">
@@ -758,6 +790,14 @@ export function LearnPageView({
   onNextTopic,
   onQuizComplete,
 }: LearnPageViewProps) {
+  const [readTopics, setReadTopics] = useState<ReadonlySet<string>>(new Set());
+
+  function handleMarkAsRead() {
+    if (activeTopic?.id) {
+      setReadTopics((prev) => new Set([...prev, activeTopic.id]));
+    }
+  }
+
   // guide panel config per view
   const guideScope: 'task' | 'topic' = view === 'exercise' ? 'task' : 'topic';
   const guideScopeId = view === 'exercise' ? activeTask?.id : activeTopic?.id;
@@ -796,6 +836,7 @@ export function LearnPageView({
           activeTopic={activeTopic}
           activeTask={activeTask}
           view={view}
+          readTopics={readTopics}
           onNavigate={onNavigate}
           onNewPlan={onNewPlan}
           onSelectTask={onSelectTask}
@@ -803,7 +844,12 @@ export function LearnPageView({
         />
 
         {view === 'theory' && (
-          <TheoryMain activePlan={activePlan} activeTopic={activeTopic} onNavigate={onNavigate} />
+          <TheoryMain
+            activePlan={activePlan}
+            activeTopic={activeTopic}
+            onNavigate={onNavigate}
+            onMarkAsRead={handleMarkAsRead}
+          />
         )}
         {view === 'quiz' && (
           <QuizMain

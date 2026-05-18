@@ -11,3 +11,4 @@ package-lock.json
 docs/05-pages-and-site-concept.md
 images/
 untitled.pen
+.playwright-mcp/

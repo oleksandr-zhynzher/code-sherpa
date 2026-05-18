@@ -12,27 +12,30 @@ type AgentFlowOptions = Readonly<{
 const agentTaskDraftSchema = z
   .object({
     difficulty: z.enum(['easy', 'medium', 'hard']),
-    language: z.enum(['python', 'typescript']).optional(),
+    language: z
+      .enum(['python', 'typescript'])
+      .nullish()
+      .transform((v) => v ?? undefined),
     promptMd: z.string().trim().min(10).max(4_000),
     slug: z.string().trim().min(1).max(80).optional(),
     title: z.string().trim().min(3).max(120),
   })
-  .strict();
+  .passthrough();
 
 const agentTopicDraftSchema = z
   .object({
     slug: z.string().trim().min(1).max(80).optional(),
-    tasks: z.array(agentTaskDraftSchema).min(1).max(8),
+    tasks: z.array(agentTaskDraftSchema).min(1).max(12),
     title: z.string().trim().min(3).max(120),
   })
-  .strict();
+  .passthrough();
 
 const agentPlanDraftSchema = z
   .object({
     title: z.string().trim().min(3).max(120),
-    topics: z.array(agentTopicDraftSchema).min(1).max(8),
+    topics: z.array(agentTopicDraftSchema).min(1).max(16),
   })
-  .strict();
+  .passthrough();
 
 const agentChatResponseSchema = z
   .object({
@@ -76,7 +79,7 @@ function parseAgentJson<T>(contentMd: string, schema: z.ZodType<T>, label: strin
     parsed = JSON.parse(jsonText) as unknown;
   } catch (error) {
     if (error instanceof SyntaxError) {
-      throw new Error(`${label} agent response was not valid JSON`);
+      throw new Error(`${label} agent response was not valid JSON: ${jsonText.slice(0, 300)}`);
     }
 
     throw error;
@@ -84,7 +87,8 @@ function parseAgentJson<T>(contentMd: string, schema: z.ZodType<T>, label: strin
 
   const result = schema.safeParse(parsed);
   if (!result.success) {
-    throw new Error(`${label} agent response did not match the required schema`);
+    const details = JSON.stringify(result.error.format());
+    throw new Error(`${label} agent response did not match the required schema: ${details}`);
   }
 
   return result.data;
@@ -112,7 +116,7 @@ export async function generateLearningPathDraftWithAgent({
     {
       prompt: `Create a DSA learning path for this goal: ${goal}
 
-Return only JSON in this exact shape:
+Return only JSON in this exact shape (max 12 topics, max 8 tasks per topic):
 {"title":"string","topics":[{"title":"string","slug":"optional-kebab-case","tasks":[{"title":"string","slug":"optional-kebab-case","difficulty":"easy|medium|hard","language":"python|typescript","promptMd":"markdown prompt"}]}]}`,
       systemPrompt: createTrustedAgentSystemPrompt(setup),
     },

@@ -2000,6 +2000,7 @@ fieldset.setup-field {
   border-radius: var(--rounded-md);
   overflow: hidden;
   border: 1px solid #2a2a2a;
+  flex-shrink: 0;
 }
 
 .learn-code-editor__label {
@@ -2068,6 +2069,41 @@ fieldset.setup-field {
 .learn-result p {
   margin: 0;
   font-size: 0.875rem;
+  color: var(--foreground-secondary);
+}
+
+/* Run result (live feedback) */
+
+.learn-run-result {
+  border-radius: var(--rounded-md);
+  padding: 0.875rem 1rem;
+}
+
+.learn-run-result--pass {
+  background: #e8f5e9;
+  border: 1px solid #c8e6c9;
+}
+
+.learn-run-result--pass strong {
+  color: var(--success);
+}
+
+.learn-run-result--fail {
+  background: #fff3f3;
+  border: 1px solid #f8c8c8;
+}
+
+.learn-run-result--fail strong {
+  color: var(--error);
+}
+
+.learn-run-output {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  font-family: var(--font-data);
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 12rem;
   color: var(--foreground-secondary);
 }
 

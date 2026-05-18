@@ -47,6 +47,7 @@ export async function buildServer(options: ServerOptions = {}): Promise<FastifyI
 
   await server.register(cors, {
     origin: ['http://127.0.0.1:3000', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   server.get('/health', async () => ({

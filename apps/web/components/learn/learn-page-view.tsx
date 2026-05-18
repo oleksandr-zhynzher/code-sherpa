@@ -218,18 +218,22 @@ function LearnSidebar({
 
 // ─── Exercise Main ────────────────────────────────────────────────────────────
 
+type RunStatus = 'idle' | 'saving' | 'running' | 'pass' | 'fail' | 'error';
+
 function ExerciseMain({
   activePlan,
   activeTopic,
   activeTask,
   onMarkTaskDone,
   onNavigate,
+  onGetHint,
 }: {
   activePlan: PlanDetail | null;
   activeTopic: TopicWithTasks | null;
   activeTask: Task | null;
   onMarkTaskDone: (taskId: string) => void;
   onNavigate: (view: LearnView) => void;
+  onGetHint: () => void;
 }) {
   const planTitle = activePlan?.title ?? DEFAULT_PLAN_TITLE;
   const topicTitle = activeTopic?.title ?? '';
@@ -238,10 +242,49 @@ function ExerciseMain({
   const taskPrompt = activeTask?.promptMd ?? '';
   const isDone = activeTask?.status === 'done' || activeTask?.status === 'passing';
   const [code, setCode] = useState('');
+  const [runStatus, setRunStatus] = useState<RunStatus>('idle');
+  const [runOutput, setRunOutput] = useState('');
 
   useEffect(() => {
     setCode('');
+    setRunStatus('idle');
+    setRunOutput('');
   }, [activeTask?.id]);
+
+  async function handleSave() {
+    if (!activeTask?.id || runStatus === 'saving' || runStatus === 'running') return;
+    setRunStatus('saving');
+    try {
+      await api.saveSolution(activeTask.id, code);
+      setRunStatus('idle');
+    } catch {
+      setRunStatus('error');
+      setRunOutput('Failed to save progress.');
+    }
+  }
+
+  async function handleCheck() {
+    if (!activeTask?.id || runStatus === 'running' || runStatus === 'saving') return;
+    setRunStatus('saving');
+    try {
+      await api.saveSolution(activeTask.id, code);
+    } catch {
+      setRunStatus('error');
+      setRunOutput('Failed to save solution before running.');
+      return;
+    }
+    setRunStatus('running');
+    try {
+      const { result } = await api.runTask(activeTask.id);
+      setRunStatus(result.passed ? 'pass' : 'fail');
+      setRunOutput(result.output);
+    } catch {
+      setRunStatus('error');
+      setRunOutput('Failed to run tests. Please try again.');
+    }
+  }
+
+  const isBusy = runStatus === 'saving' || runStatus === 'running';
 
   return (
     <main className="learn-main">
@@ -299,16 +342,49 @@ function ExerciseMain({
         </div>
 
         <div className="learn-action-bar">
-          <Button>Check My Answer</Button>
-          <Button variant="secondary">Save Progress</Button>
-          <Button variant="ghost">Get a Hint</Button>
+          <Button disabled={isBusy || !activeTask} onClick={() => void handleCheck()}>
+            {runStatus === 'running'
+              ? 'Running…'
+              : runStatus === 'saving'
+                ? 'Saving…'
+                : 'Check My Answer'}
+          </Button>
+          <Button
+            disabled={isBusy || !activeTask}
+            variant="secondary"
+            onClick={() => void handleSave()}
+          >
+            {runStatus === 'saving' ? 'Saving…' : 'Save Progress'}
+          </Button>
+          <Button variant="ghost" onClick={onGetHint}>
+            Get a Hint
+          </Button>
         </div>
+
+        {runStatus === 'pass' && (
+          <div className="learn-run-result learn-run-result--pass" role="status">
+            <strong>✓ All tests passed!</strong>
+            {runOutput && <pre className="learn-run-output">{runOutput}</pre>}
+          </div>
+        )}
+        {runStatus === 'fail' && (
+          <div className="learn-run-result learn-run-result--fail" role="status">
+            <strong>✗ Tests failed</strong>
+            {runOutput && <pre className="learn-run-output">{runOutput}</pre>}
+          </div>
+        )}
+        {runStatus === 'error' && (
+          <div className="learn-run-result learn-run-result--fail" role="status">
+            <strong>Error</strong>
+            {runOutput && <p>{runOutput}</p>}
+          </div>
+        )}
 
         <div className="learn-next">
           <div>
             <p className="learn-kicker">Up next</p>
             <h2>Take the Quiz</h2>
-            <p>{activeTopic?.tasks.length ?? 0} questions · Test your understanding</p>
+            <p>Test your understanding of {topicTitle}</p>
           </div>
           <Button onClick={() => onNavigate('quiz')}>Take Quiz</Button>
         </div>
@@ -668,9 +744,18 @@ interface GuidePanelProps {
   scopeId: string | undefined;
   quickActions: ReadonlyArray<{ action: GuideAction; label: string }>;
   contextMd: string;
+  pendingAction?: GuideAction | null;
+  onPendingActionConsumed?: () => void;
 }
 
-function GuidePanel({ scopeType, scopeId, quickActions, contextMd }: GuidePanelProps) {
+function GuidePanel({
+  scopeType,
+  scopeId,
+  quickActions,
+  contextMd,
+  pendingAction,
+  onPendingActionConsumed,
+}: GuidePanelProps) {
   const [messages, setMessages] = useState<ReadonlyArray<{ content: string; role: string }>>([]);
   const [inputVal, setInputVal] = useState('');
   const [threadId, setThreadId] = useState<null | string>(null);
@@ -696,6 +781,14 @@ function GuidePanel({ scopeType, scopeId, quickActions, contextMd }: GuidePanelP
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeId, scopeType]);
+
+  // Fire pending action from parent (e.g. "Get a Hint" button in exercise area)
+  useEffect(() => {
+    if (!pendingAction) return;
+    onPendingActionConsumed?.();
+    void sendQuickAction(pendingAction);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAction]);
 
   async function sendQuickAction(action: GuideAction) {
     if (!scopeId || isLoading) return;
@@ -831,6 +924,7 @@ export function LearnPageView({
   const [readTopics, setReadTopics] = useState<ReadonlySet<string>>(
     () => new Set(activePlan?.topics.filter((t) => t.theoryRead).map((t) => t.id) ?? []),
   );
+  const [pendingHint, setPendingHint] = useState<GuideAction | null>(null);
 
   function handleMarkAsRead() {
     const topicId = activeTopic?.id;
@@ -917,6 +1011,7 @@ export function LearnPageView({
             activeTask={activeTask}
             onMarkTaskDone={onMarkTaskDone}
             onNavigate={onNavigate}
+            onGetHint={() => setPendingHint('small_hint')}
           />
         )}
 
@@ -926,6 +1021,8 @@ export function LearnPageView({
           quickActions={quickActions}
           scopeId={guideScopeId}
           scopeType={guideScope}
+          pendingAction={pendingHint}
+          onPendingActionConsumed={() => setPendingHint(null)}
         />
       </div>
     </section>

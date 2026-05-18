@@ -1,0 +1,94 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - region "Your learning space" [ref=e71]:
+    - generic [ref=e72]:
+      - link "code-sherpa home" [ref=e73] [cursor=pointer]:
+        - /url: /
+        - img [ref=e74]
+        - generic [ref=e77]: code sherpa
+      - navigation "Learning navigation" [ref=e78]:
+        - link "Home" [ref=e79] [cursor=pointer]:
+          - /url: /
+        - link "Setup" [ref=e80] [cursor=pointer]:
+          - /url: /setup
+        - link "Learning Space" [ref=e81] [cursor=pointer]:
+          - /url: /learn
+      - generic [ref=e82]:
+        - generic [ref=e85]: All systems ready
+        - generic "User initials" [ref=e86]: OZ
+    - generic [ref=e87]:
+      - complementary [ref=e88]:
+        - generic [ref=e89]:
+          - paragraph [ref=e90]: Your Paths
+          - button "New" [ref=e91] [cursor=pointer]
+        - button "Continue where you left off Prototype Basics" [ref=e92] [cursor=pointer]:
+          - generic [ref=e93]: ▶
+          - generic [ref=e94]:
+            - paragraph [ref=e95]: Continue where you left off
+            - paragraph [ref=e96]: Prototype Basics
+        - generic [ref=e97] [cursor=pointer]:
+          - generic [ref=e98]:
+            - strong [ref=e99]: JS Prototypes Learning Path
+            - generic [ref=e100]: 0 of 8 tasks
+          - progressbar "JS Prototypes Learning Path progress" [ref=e101]
+        - generic [ref=e102]:
+          - paragraph [ref=e103]: Topics
+          - generic [ref=e104]:
+            - button "Prototype Basics" [ref=e105] [cursor=pointer]:
+              - img [ref=e106]
+              - generic [ref=e109]: Prototype Basics
+            - generic [ref=e110]:
+              - button "Theory" [ref=e111] [cursor=pointer]:
+                - img [ref=e112]
+                - text: Theory
+              - button "Exercises" [ref=e116] [cursor=pointer]:
+                - img [ref=e117]
+                - text: Exercises
+              - button "Quiz" [ref=e129] [cursor=pointer]:
+                - img [ref=e130]
+                - text: Quiz
+          - button "Creating and Linking Prototypes" [ref=e134] [cursor=pointer]:
+            - img [ref=e135]
+            - generic [ref=e137]: Creating and Linking Prototypes
+          - button "Classes vs Prototypes" [ref=e139] [cursor=pointer]:
+            - img [ref=e140]
+            - generic [ref=e142]: Classes vs Prototypes
+          - button "Deep Understanding and Edge Cases" [ref=e144] [cursor=pointer]:
+            - img [ref=e145]
+            - generic [ref=e147]: Deep Understanding and Edge Cases
+      - main [ref=e376]:
+        - generic [ref=e377]:
+          - paragraph [ref=e378]: JS Prototypes Learning Path / Prototype Basics / Quiz
+          - generic [ref=e379]:
+            - heading "Prototype Basics Quiz" [level=1] [ref=e380]
+            - generic [ref=e381]: 2 / 8
+        - generic [ref=e383]:
+          - generic [ref=e384]:
+            - strong [ref=e385]: Question 2
+            - generic [ref=e386]: Multiple Choice
+          - 'heading "If `obj.color` is not found directly on `obj`, what does JavaScript do next?" [level=2] [ref=e407]'
+          - radiogroup "Answer choices" [ref=e388]:
+            - radio "It throws an error immediately" [ref=e408] [cursor=pointer]:
+              - generic [ref=e410]: It throws an error immediately
+            - radio "It looks up the prototype chain" [ref=e411] [cursor=pointer]:
+              - generic [ref=e413]: It looks up the prototype chain
+            - radio "It deletes the property from memory" [ref=e414] [cursor=pointer]:
+              - generic [ref=e416]: It deletes the property from memory
+            - 'radio "It converts `obj` into an array" [ref=e417] [cursor=pointer]':
+              - generic [ref=e419]: "It converts `obj` into an array"
+          - generic [ref=e401]:
+            - button "Previous" [ref=e402] [cursor=pointer]
+            - button "Next Question" [active] [ref=e403] [cursor=pointer]
+      - complementary [ref=e363]:
+        - generic [ref=e364]:
+          - button "Guide" [ref=e365] [cursor=pointer]
+          - button "Visualize" [ref=e366] [cursor=pointer]
+          - button "Progress" [ref=e367] [cursor=pointer]
+        - generic [ref=e369]:
+          - button "Small hint" [ref=e404] [cursor=pointer]
+          - button "Explain topic" [ref=e405] [cursor=pointer]
+          - button "Break it down" [ref=e406] [cursor=pointer]
+        - generic [ref=e373]:
+          - textbox "Ask your Sherpa anything" [ref=e374]:
+            - /placeholder: Ask your Sherpa anything...
+          - button "Send message" [ref=e375] [cursor=pointer]: →

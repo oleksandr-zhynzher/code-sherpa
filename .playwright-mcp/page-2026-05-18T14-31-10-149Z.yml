@@ -1,0 +1,19 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]: code-sherpa
+  - generic [ref=e557]:
+    - generic [ref=e558]: 🗺
+    - heading "Create your learning plan" [level=1] [ref=e559]
+    - paragraph [ref=e560]: Describe your goal and the AI will build a personalised DSA curriculum — topics, exercises, and quizzes.
+    - generic [ref=e561]:
+      - generic [ref=e562]: What do you want to achieve?
+      - textbox "What do you want to achieve?" [disabled] [ref=e563]:
+        - /placeholder: e.g. Ace FAANG coding interviews
+        - text: Ace FAANG coding interviews
+      - generic [ref=e564]:
+        - button "Ace FAANG coding interviews" [disabled] [ref=e565]
+        - button "Learn data structures from scratch" [disabled] [ref=e566]
+        - button "Master dynamic programming" [disabled] [ref=e567]
+        - button "Prepare for system design interviews" [disabled] [ref=e568]
+      - generic [ref=e569]:
+        - button "Cancel" [disabled] [ref=e570]
+        - button "Building your learning plan…" [disabled] [ref=e572]: Building your learning plan…

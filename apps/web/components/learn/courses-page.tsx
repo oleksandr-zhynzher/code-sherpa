@@ -1,30 +1,15 @@
 'use client';
 
-import { useState } from 'react';
-
-import { api } from '../../lib/api';
-import type { PlanDetail, PlanSummary } from '../../lib/types';
+import type { PlanSummary } from '../../lib/types';
 import { Button, Logo, ProgressBar } from '../ui/design-system';
 
 interface CoursesPageProps {
   plans: PlanSummary[];
-  onSelect: (plan: PlanDetail) => void;
+  onSelect: (plan: PlanSummary) => void;
   onCreateNew: () => void;
 }
 
 export function CoursesPage({ plans, onSelect, onCreateNew }: CoursesPageProps) {
-  const [loadingId, setLoadingId] = useState<null | string>(null);
-
-  async function handleSelect(planId: string) {
-    setLoadingId(planId);
-    try {
-      const detail = await api.showPlan(planId);
-      onSelect(detail);
-    } finally {
-      setLoadingId(null);
-    }
-  }
-
   return (
     <section className="courses-page" aria-label="Your learning courses">
       <header className="learn-topbar">
@@ -66,7 +51,6 @@ export function CoursesPage({ plans, onSelect, onCreateNew }: CoursesPageProps) 
             {plans.map((plan) => {
               const pct =
                 plan.totalTasks > 0 ? Math.round((plan.doneTasks / plan.totalTasks) * 100) : 0;
-              const isLoading = loadingId === plan.id;
               return (
                 <article className="course-card" key={plan.id}>
                   <div className="course-card__body">
@@ -84,8 +68,8 @@ export function CoursesPage({ plans, onSelect, onCreateNew }: CoursesPageProps) 
                     />
                   </div>
                   <div className="course-card__footer">
-                    <Button disabled={isLoading} onClick={() => void handleSelect(plan.id)}>
-                      {isLoading ? 'Loading…' : plan.doneTasks > 0 ? 'Continue' : 'Start'}
+                    <Button onClick={() => onSelect(plan)}>
+                      {plan.doneTasks > 0 ? 'Continue' : 'Start'}
                     </Button>
                   </div>
                 </article>

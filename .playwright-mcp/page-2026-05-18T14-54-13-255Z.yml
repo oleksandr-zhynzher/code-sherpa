@@ -1,0 +1,139 @@
+- generic [ref=e1]:
+  - alert [ref=e2]: code-sherpa
+  - region "Your learning space" [ref=e583]:
+    - generic [ref=e584]:
+      - link "code-sherpa home" [ref=e585] [cursor=pointer]:
+        - /url: /
+        - img [ref=e586]
+        - generic [ref=e589]: code sherpa
+      - navigation "Learning navigation" [ref=e590]:
+        - link "Home" [ref=e591] [cursor=pointer]:
+          - /url: /
+        - link "Setup" [ref=e592] [cursor=pointer]:
+          - /url: /setup
+        - link "Learning Space" [ref=e593] [cursor=pointer]:
+          - /url: /learn
+      - generic [ref=e594]:
+        - generic [ref=e597]: All systems ready
+        - generic "User initials" [ref=e598]: OZ
+    - generic [ref=e599]:
+      - complementary [ref=e600]:
+        - generic [ref=e601]:
+          - paragraph [ref=e602]: Your Paths
+          - button "New" [ref=e603] [cursor=pointer]
+        - button "Continue where you left off Dynamic Programming" [ref=e743] [cursor=pointer]:
+          - generic [ref=e605]: ▶
+          - generic [ref=e606]:
+            - paragraph [ref=e607]: Continue where you left off
+            - paragraph [ref=e608]: Dynamic Programming
+        - generic [ref=e609] [cursor=pointer]:
+          - generic [ref=e610]:
+            - strong [ref=e611]: Ace FAANG Coding Interviews
+            - generic [ref=e612]: 0 of 46 tasks
+          - progressbar "Ace FAANG Coding Interviews progress" [ref=e613]
+        - generic [ref=e614]:
+          - paragraph [ref=e615]: Topics
+          - button "Complexity, Arrays, and Hashing" [ref=e617] [cursor=pointer]:
+            - img [ref=e618]
+            - generic [ref=e621]: Complexity, Arrays, and Hashing
+          - button "Two Pointers and Sliding Window" [ref=e651] [cursor=pointer]:
+            - img [ref=e652]
+            - generic [ref=e654]: Two Pointers and Sliding Window
+          - button "Stack, Queue, and Monotonic Stack" [ref=e656] [cursor=pointer]:
+            - img [ref=e657]
+            - generic [ref=e659]: Stack, Queue, and Monotonic Stack
+          - button "Binary Search and Greedy" [ref=e661] [cursor=pointer]:
+            - img [ref=e662]
+            - generic [ref=e664]: Binary Search and Greedy
+          - button "Linked Lists" [ref=e666] [cursor=pointer]:
+            - img [ref=e667]
+            - generic [ref=e669]: Linked Lists
+          - button "Trees and Binary Search Trees" [ref=e671] [cursor=pointer]:
+            - img [ref=e672]
+            - generic [ref=e674]: Trees and Binary Search Trees
+          - button "Heaps, Priority Queues, and Intervals" [ref=e676] [cursor=pointer]:
+            - img [ref=e677]
+            - generic [ref=e679]: Heaps, Priority Queues, and Intervals
+          - button "Graphs and Grids" [ref=e681] [cursor=pointer]:
+            - img [ref=e682]
+            - generic [ref=e684]: Graphs and Grids
+          - button "Backtracking and Tries" [ref=e686] [cursor=pointer]:
+            - img [ref=e687]
+            - generic [ref=e689]: Backtracking and Tries
+          - generic [ref=e690]:
+            - button "Dynamic Programming" [active] [ref=e691] [cursor=pointer]:
+              - img [ref=e692]
+              - generic [ref=e694]: Dynamic Programming
+            - generic [ref=e745]:
+              - button "Theory" [ref=e746] [cursor=pointer]:
+                - img [ref=e747]
+                - text: Theory
+              - generic [ref=e749]:
+                - button "Exercises" [ref=e750] [cursor=pointer]:
+                  - img [ref=e751]
+                  - text: Exercises
+                - generic [ref=e755]:
+                  - button "Climbing Stairs" [ref=e756] [cursor=pointer]:
+                    - img [ref=e757]
+                    - text: Climbing Stairs
+                  - button "House Robber" [ref=e760] [cursor=pointer]:
+                    - img [ref=e761]
+                    - text: House Robber
+                  - button "Longest Increasing Subsequence" [ref=e763] [cursor=pointer]:
+                    - img [ref=e764]
+                    - text: Longest Increasing Subsequence
+                  - button "Coin Change" [ref=e766] [cursor=pointer]:
+                    - img [ref=e767]
+                    - text: Coin Change
+                  - button "Longest Common Subsequence" [ref=e769] [cursor=pointer]:
+                    - img [ref=e770]
+                    - text: Longest Common Subsequence
+                  - button "Edit Distance" [ref=e772] [cursor=pointer]:
+                    - img [ref=e773]
+                    - text: Edit Distance
+              - button "Quiz" [ref=e775] [cursor=pointer]:
+                - img [ref=e776]
+                - text: Quiz
+          - button "Interview Simulation and Pattern Review" [ref=e696] [cursor=pointer]:
+            - img [ref=e697]
+            - generic [ref=e699]: Interview Simulation and Pattern Review
+      - main [ref=e700]:
+        - generic [ref=e701]:
+          - paragraph [ref=e702]: Ace FAANG Coding Interviews / Dynamic Programming / Exercise
+          - generic [ref=e703]:
+            - heading "Climbing Stairs" [level=1] [ref=e779]
+            - generic [ref=e705]: Easy
+            - button "Mark as done" [ref=e706] [cursor=pointer]:
+              - img [ref=e707]
+              - text: Mark as done
+        - generic [ref=e710]:
+          - paragraph [ref=e712]: "Solve Climbing Stairs and explain the DP recipe: 1. define state, 2. write recurrence, 3. set base cases, 4. choose top-down or bottom-up."
+          - generic [ref=e713]:
+            - heading "Your Solution" [level=2] [ref=e714]
+            - generic [ref=e715]: python
+          - generic [ref=e716]:
+            - generic [ref=e718]: solution.py
+            - textbox "Your Solution" [ref=e719]
+          - generic [ref=e720]:
+            - button "Check My Answer" [ref=e721] [cursor=pointer]
+            - button "Save Progress" [ref=e722] [cursor=pointer]
+            - button "Get a Hint" [ref=e723] [cursor=pointer]
+          - generic [ref=e724]:
+            - generic [ref=e725]:
+              - paragraph [ref=e726]: Up next
+              - heading "Take the Quiz" [level=2] [ref=e727]
+              - paragraph [ref=e728]: Test your understanding of Dynamic Programming
+            - button "Take Quiz" [ref=e729] [cursor=pointer]
+      - complementary [ref=e780]:
+        - generic [ref=e781]:
+          - button "Guide" [ref=e782] [cursor=pointer]
+          - button "Visualize" [ref=e783] [cursor=pointer]
+          - button "Progress" [ref=e784] [cursor=pointer]
+        - generic [ref=e786]:
+          - button "Small hint" [ref=e787] [cursor=pointer]
+          - button "Explain error" [ref=e788] [cursor=pointer]
+          - button "Break it down" [ref=e789] [cursor=pointer]
+        - generic [ref=e790]:
+          - textbox "Ask your Sherpa anything" [ref=e791]:
+            - /placeholder: Ask your Sherpa anything...
+          - button "Send message" [ref=e792] [cursor=pointer]: →

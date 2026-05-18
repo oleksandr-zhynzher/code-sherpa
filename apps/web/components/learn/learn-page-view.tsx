@@ -322,6 +322,12 @@ function TheoryMain({
     setGenError(null);
   }, [activeTopic?.id, activeTopic?.explanationMd]);
 
+  // Mark section complete and navigate away
+  function handleNext(view: LearnView) {
+    onMarkAsRead();
+    onNavigate(view);
+  }
+
   async function generate() {
     if (!activeTopic?.id || isGenerating) return;
     setIsGenerating(true);
@@ -386,11 +392,11 @@ function TheoryMain({
                     {activeTopic?.tasks.length ?? 0} exercises · {topicTitle}
                   </p>
                 </div>
-                <Button onClick={() => onNavigate('exercise')}>Exercise</Button>
+                <Button onClick={() => handleNext('exercise')}>Exercise</Button>
                 <button
                   className="theory-next__quiz-link"
                   type="button"
-                  onClick={() => onNavigate('quiz')}
+                  onClick={() => handleNext('quiz')}
                 >
                   Take the quiz instead
                 </button>

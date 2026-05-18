@@ -154,11 +154,22 @@ export function registerRoutes(server: FastifyInstance): void {
   });
 
   server.get('/api/agent/health', async () => {
-    const agent = await createConfiguredAgentService(server);
-    const health = await agent.service.healthCheck({ timeoutMs: 30_000 });
+    const setup = getConfiguredSetup(server);
+    // Health check bypasses the "path required" guard — it tries the default binary from
+    // PATH so users can verify connectivity before saving a path in Setup.
+    const workspacePath = await validateWorkspaceRoot(
+      setup.workspacePath,
+      server.codeSherpa.workspaceBasePath,
+    );
+    const driver = createAgentDriverForSetup({
+      runner: server.codeSherpa.agentProcessRunner,
+      setup,
+      workspacePath,
+    });
+    const health = await driver.healthCheck(AbortSignal.timeout(30_000));
 
     return {
-      driver: agent.driver.kind,
+      driver: driver.kind,
       health,
     };
   });

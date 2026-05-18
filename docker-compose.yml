@@ -16,6 +16,11 @@ services:
     volumes:
       - ./workspace:/app/workspace
       - ./.code-sherpa:/app/.code-sherpa
+      # Mount host CLI tools so the API can run copilot/claude from the host PATH
+      - /usr/local/bin:/usr/local/bin:ro
+      - /opt/homebrew/bin:/opt/homebrew/bin:ro
+      # Mount host GitHub CLI config for Copilot CLI authentication
+      - ${HOME}/.config/gh:/root/.config/gh:ro
     networks:
       - code-sherpa
     restart: unless-stopped

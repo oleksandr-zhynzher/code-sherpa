@@ -166,7 +166,14 @@ function LearnSidebar({
                       type="button"
                       onClick={() => onNavigate('exercise')}
                     >
-                      <SubtopicIcon active={view === 'exercise'} type="exercise" />
+                      <SubtopicIcon
+                        active={view === 'exercise'}
+                        done={
+                          topic.tasks.length > 0 &&
+                          topic.tasks.every((t) => t.status === 'done' || t.status === 'passing')
+                        }
+                        type="exercise"
+                      />
                       Exercises
                     </button>
                     {view === 'exercise' && topic.tasks.length > 1 && (
@@ -191,7 +198,11 @@ function LearnSidebar({
                     type="button"
                     onClick={() => onNavigate('quiz')}
                   >
-                    <SubtopicIcon active={view === 'quiz' || view === 'results'} type="quiz" />
+                    <SubtopicIcon
+                      active={view === 'quiz' || view === 'results'}
+                      done={topic.quizPassed}
+                      type="quiz"
+                    />
                     Quiz
                   </button>
                 </div>
@@ -790,12 +801,16 @@ export function LearnPageView({
   onNextTopic,
   onQuizComplete,
 }: LearnPageViewProps) {
-  const [readTopics, setReadTopics] = useState<ReadonlySet<string>>(new Set());
+  // Seed from DB-persisted theoryRead flags; augment with any marked this session
+  const [readTopics, setReadTopics] = useState<ReadonlySet<string>>(
+    () => new Set(activePlan?.topics.filter((t) => t.theoryRead).map((t) => t.id) ?? []),
+  );
 
   function handleMarkAsRead() {
-    if (activeTopic?.id) {
-      setReadTopics((prev) => new Set([...prev, activeTopic.id]));
-    }
+    const topicId = activeTopic?.id;
+    if (!topicId) return;
+    setReadTopics((prev) => new Set([...prev, topicId]));
+    api.markTheoryRead(topicId).catch(() => {});
   }
 
   // guide panel config per view

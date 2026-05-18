@@ -317,6 +317,12 @@ export function registerRoutes(server: FastifyInstance): void {
     return server.codeSherpa.db.getTopic(params.id);
   });
 
+  server.post('/api/topics/:id/mark-theory-read', async (request, reply) => {
+    const params = idParamsSchema.parse(request.params);
+    server.codeSherpa.db.markTheoryRead(params.id);
+    return reply.status(200).send({ ok: true });
+  });
+
   server.post('/api/topics/:id/explain', async (request) => {
     const params = idParamsSchema.parse(request.params);
     const topic = server.codeSherpa.db.getTopic(params.id);

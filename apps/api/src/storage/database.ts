@@ -51,8 +51,10 @@ type TopicRow = Readonly<{
   id: string;
   plan_id: string;
   position: number;
+  quiz_passed: number;
   slug: string;
   status: Task['status'];
+  theory_read: number;
   title: string;
 }>;
 
@@ -268,6 +270,7 @@ export type CodeSherpaDatabase = Readonly<{
   ) => SetupState;
   updateTaskFiles: (id: string, solutionPath: string, testPath: string) => Task;
   updateTopicExplanation: (id: string, explanationMd: string) => Topic;
+  markTheoryRead: (id: string) => void;
   createQuiz: (
     input: Readonly<{
       topicId: string;
@@ -306,8 +309,10 @@ function mapTopic(row: TopicRow): Topic {
     id: row.id,
     planId: row.plan_id,
     position: row.position,
+    quizPassed: row.quiz_passed === 1,
     slug: row.slug,
     status: row.status,
+    theoryRead: row.theory_read === 1,
     title: row.title,
   };
 }
@@ -935,6 +940,9 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
 
       return mapTopic(row);
     },
+    markTheoryRead: (id: string) => {
+      db.prepare('UPDATE topic SET theory_read = 1 WHERE id = ?').run(id);
+    },
     createQuiz: (input) => {
       return runInTransaction(db, () => {
         const quizId = `quiz-${randomUUID()}`;
@@ -1150,6 +1158,14 @@ export function createDatabase(dbPath: string): CodeSherpaDatabase {
         db.prepare(
           'UPDATE quiz_attempt SET status = ?, completed_at = ?, score = ?, total = ?, duration_ms = ? WHERE id = ?',
         ).run('completed', now, correctCount, total, durationMs, id);
+
+        // Mark topic quiz as passed
+        const quizRow = db
+          .prepare('SELECT topic_id FROM quiz WHERE id = ?')
+          .get(attemptRow.quiz_id) as unknown as { topic_id: string } | undefined;
+        if (quizRow) {
+          db.prepare('UPDATE topic SET quiz_passed = 1 WHERE id = ?').run(quizRow.topic_id);
+        }
 
         insertProgressEvent('quiz_completed', 'quiz', attemptRow.quiz_id, {
           score: correctCount,

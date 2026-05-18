@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { Task, Topic } from './types.js';
 
 type GeneratedTopic = Readonly<
-  Omit<Topic, 'explanationMd' | 'id' | 'planId' | 'status'> &
+  Omit<Topic, 'explanationMd' | 'id' | 'planId' | 'quizPassed' | 'status' | 'theoryRead'> &
     Readonly<{
       tasks: ReadonlyArray<
         Omit<

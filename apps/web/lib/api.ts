@@ -86,6 +86,10 @@ export const api = {
     request<Readonly<{ explanationMd: string }>>(`/api/topics/${topicId}/explain`, {
       method: 'POST',
     }),
+  markTheoryRead: (topicId: string) =>
+    request<Readonly<{ ok: boolean }>>(`/api/topics/${topicId}/mark-theory-read`, {
+      method: 'POST',
+    }),
   generateAllPlanContent: (planId: string) =>
     request<
       Readonly<{

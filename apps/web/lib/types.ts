@@ -21,9 +21,11 @@ export type Topic = Readonly<{
   id: string;
   planId: string;
   position: number;
+  quizPassed: boolean;
   slug: string;
   status: TaskStatus;
   tasks: ReadonlyArray<Task>;
+  theoryRead: boolean;
   title: string;
 }>;
 

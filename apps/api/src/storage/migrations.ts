@@ -327,6 +327,11 @@ function addAgentModelToSettings(db: DatabaseSync): void {
   ensureColumn(db, 'settings', 'agent_model', 'TEXT');
 }
 
+function addTopicSectionProgress(db: DatabaseSync): void {
+  ensureColumn(db, 'topic', 'theory_read', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(db, 'topic', 'quiz_passed', 'INTEGER NOT NULL DEFAULT 0');
+}
+
 const migrations: ReadonlyArray<Migration> = [
   {
     name: 'create-base-poc-schema',
@@ -367,6 +372,11 @@ const migrations: ReadonlyArray<Migration> = [
     name: 'add-agent-model-to-settings',
     run: addAgentModelToSettings,
     version: 8,
+  },
+  {
+    name: 'add-topic-section-progress',
+    run: addTopicSectionProgress,
+    version: 9,
   },
 ];
 

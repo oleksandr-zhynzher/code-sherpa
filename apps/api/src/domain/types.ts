@@ -14,8 +14,10 @@ export type Topic = Readonly<{
   id: string;
   planId: string;
   position: number;
+  quizPassed: boolean;
   slug: string;
   status: TaskStatus;
+  theoryRead: boolean;
   title: string;
 }>;
 

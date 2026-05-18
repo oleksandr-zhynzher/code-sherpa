@@ -31,6 +31,24 @@ function difficultyTone(d: string): 'danger' | 'success' | 'warning' {
   return 'warning';
 }
 
+// ─── Radio Icon ──────────────────────────────────────────────────────────────
+
+function RadioIcon({ active, size = 18 }: { active: boolean; size?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={`radio-icon${active ? ' radio-icon--active' : ''}`}
+      fill="none"
+      height={size}
+      viewBox="0 0 18 18"
+      width={size}
+    >
+      <circle cx="9" cy="9" r="7.5" stroke="currentColor" strokeWidth="1.5" />
+      {active && <circle cx="9" cy="9" r="4" fill="currentColor" />}
+    </svg>
+  );
+}
+
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
 interface SidebarProps {
@@ -94,12 +112,7 @@ function LearnSidebar({
         <p className="learn-topics-section__label">Topics</p>
         {activePlan?.topics.map((topic, topicIdx) => {
           const isActive = activeTopic?.id === topic.id;
-          const iconMod =
-            topic.status === 'done'
-              ? ' learn-topic-item__icon--done'
-              : isActive
-                ? ' learn-topic-item__icon--active'
-                : ' learn-topic-item__icon--circle';
+          const topicActive = isActive || topic.status === 'done';
           return (
             <div key={topic.id}>
               <button
@@ -107,9 +120,7 @@ function LearnSidebar({
                 type="button"
                 onClick={() => onSelectTopic(topicIdx)}
               >
-                <span className={`learn-topic-item__icon${iconMod}`} aria-hidden="true">
-                  {topic.status === 'done' ? '✓' : ''}
-                </span>
+                <RadioIcon active={topicActive} />
                 <span className="learn-topic-item__name">{topic.title}</span>
               </button>
               {isActive && (
@@ -119,40 +130,44 @@ function LearnSidebar({
                     type="button"
                     onClick={() => onNavigate('theory')}
                   >
-                    <span className="learn-topic-subtopic__radio" aria-hidden="true" />
+                    <RadioIcon active={view === 'theory'} size={16} />
                     Theory
                   </button>
-                  <button
-                    className={`learn-topic-subtopic${view === 'exercise' ? ' active' : ''}`}
-                    type="button"
-                    onClick={() => onNavigate('exercise')}
-                  >
-                    <span className="learn-topic-subtopic__radio" aria-hidden="true" />
-                    Exercises
-                  </button>
+
+                  <div className="learn-topic-subtopic-group">
+                    <button
+                      className={`learn-topic-subtopic${view === 'exercise' ? ' active' : ''}`}
+                      type="button"
+                      onClick={() => onNavigate('exercise')}
+                    >
+                      <RadioIcon active={view === 'exercise'} size={16} />
+                      Exercises
+                    </button>
+                    {view === 'exercise' && topic.tasks.length > 1 && (
+                      <div className="learn-topic-tasks">
+                        {topic.tasks.map((task, taskIdx) => (
+                          <button
+                            className={`learn-topic-subtopic${activeTask?.id === task.id ? ' active' : ''}`}
+                            key={task.id}
+                            type="button"
+                            onClick={() => onSelectTask(taskIdx)}
+                          >
+                            <RadioIcon active={activeTask?.id === task.id} size={14} />
+                            {task.title}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <button
                     className={`learn-topic-subtopic${view === 'quiz' || view === 'results' ? ' active' : ''}`}
                     type="button"
                     onClick={() => onNavigate('quiz')}
                   >
-                    <span className="learn-topic-subtopic__radio" aria-hidden="true" />
+                    <RadioIcon active={view === 'quiz' || view === 'results'} size={16} />
                     Quiz
                   </button>
-                </div>
-              )}
-              {isActive && view === 'exercise' && topic.tasks.length > 1 && (
-                <div className="learn-topic-subtopics learn-topic-subtopics--tasks">
-                  {topic.tasks.map((task, taskIdx) => (
-                    <button
-                      className={`learn-topic-subtopic${activeTask?.id === task.id ? ' active' : ''}`}
-                      key={task.id}
-                      type="button"
-                      onClick={() => onSelectTask(taskIdx)}
-                    >
-                      <span className="learn-topic-subtopic__radio" aria-hidden="true" />
-                      {task.title}
-                    </button>
-                  ))}
                 </div>
               )}
             </div>

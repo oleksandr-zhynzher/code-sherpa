@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { api } from '../../lib/api';
 import type { GuideAction, LearnView, PlanDetail, Quiz, QuizAttempt, Task } from '../../lib/types';
-import { Button, Logo, Pill, ProgressBar, Tabs } from '../ui/design-system';
+import { Button, Logo, Pill, ProgressBar } from '../ui/design-system';
 
 type TopicWithTasks = PlanDetail['topics'][number];
 
@@ -186,55 +186,58 @@ function ExerciseMain({
 
   return (
     <main className="learn-main">
-      <div className="learn-exercise-header">
-        <p className="learn-exercise-header__breadcrumb">
-          {planTitle} / {topicTitle} / {taskTitle}
+      <div className="view-header">
+        <p className="view-breadcrumb">
+          <span>{planTitle}</span> / <span>{topicTitle}</span> /{' '}
+          <span className="view-breadcrumb__current">Exercise</span>
         </p>
-        <div className="learn-exercise-header__title-row">
-          <h1 className="learn-exercise-header__title">{taskTitle}</h1>
+        <div className="view-header__title-row">
+          <h1 className="view-header__title">{taskTitle}</h1>
           <Pill tone={difficultyTone(taskDifficulty)}>
             {taskDifficulty.charAt(0).toUpperCase() + taskDifficulty.slice(1)}
           </Pill>
         </div>
       </div>
 
-      <div className="learn-exercise-desc">
-        {taskPrompt.split('\n\n').map((para, i) => (
-          <p key={i}>{para.replaceAll('**', '')}</p>
-        ))}
-      </div>
-
-      <div className="learn-editor-header">
-        <h2>Your Solution</h2>
-        <span className="learn-editor-lang">{activeTask?.language ?? 'typescript'}</span>
-      </div>
-
-      <div className="learn-code-editor">
-        <div className="learn-code-editor__label">
-          <span>solution.{activeTask?.language === 'typescript' ? 'ts' : 'py'}</span>
+      <div className="view-body">
+        <div className="learn-exercise-desc">
+          {taskPrompt.split('\n\n').map((para, i) => (
+            <p key={i}>{para.replaceAll('**', '')}</p>
+          ))}
         </div>
-        <textarea
-          aria-label="Your Solution"
-          className="learn-code-editor__textarea"
-          spellCheck={false}
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-        />
-      </div>
 
-      <div className="learn-action-bar">
-        <Button>Check My Answer</Button>
-        <Button variant="secondary">Save Progress</Button>
-        <Button variant="ghost">Get a Hint</Button>
-      </div>
-
-      <div className="learn-next">
-        <div>
-          <p className="learn-kicker">Up next</p>
-          <h2>Take the Quiz</h2>
-          <p>{activeTopic?.tasks.length ?? 0} questions · Test your understanding</p>
+        <div className="learn-editor-header">
+          <h2>Your Solution</h2>
+          <span className="learn-editor-lang">{activeTask?.language ?? 'typescript'}</span>
         </div>
-        <Button onClick={() => onNavigate('quiz')}>Take Quiz</Button>
+
+        <div className="learn-code-editor">
+          <div className="learn-code-editor__label">
+            <span>solution.{activeTask?.language === 'typescript' ? 'ts' : 'py'}</span>
+          </div>
+          <textarea
+            aria-label="Your Solution"
+            className="learn-code-editor__textarea"
+            spellCheck={false}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+        </div>
+
+        <div className="learn-action-bar">
+          <Button>Check My Answer</Button>
+          <Button variant="secondary">Save Progress</Button>
+          <Button variant="ghost">Get a Hint</Button>
+        </div>
+
+        <div className="learn-next">
+          <div>
+            <p className="learn-kicker">Up next</p>
+            <h2>Take the Quiz</h2>
+            <p>{activeTopic?.tasks.length ?? 0} questions · Test your understanding</p>
+          </div>
+          <Button onClick={() => onNavigate('quiz')}>Take Quiz</Button>
+        </div>
       </div>
     </main>
   );
@@ -278,56 +281,63 @@ function TheoryMain({
 
   return (
     <main className="learn-main">
-      <p className="learn-exercise-header__breadcrumb">
-        {planTitle} / {topicTitle} / Theory
-      </p>
-      <article className="theory-article">
-        <h1>{topicTitle}</h1>
-        {isGenerating && (
-          <div className="theory-generate-card">
-            <span className="plan-create-spinner" aria-hidden="true" />
-            <p>Generating explanation…</p>
-          </div>
-        )}
-        {!isGenerating && genError && (
-          <div className="theory-generate-card">
-            <p style={{ color: 'var(--error)' }}>{genError}</p>
-            <Button onClick={() => void generate()}>Retry</Button>
-          </div>
-        )}
-        {!isGenerating && !genError && !explanation && (
-          <div className="theory-generate-card">
-            <p>No theory content yet.</p>
-            <Button onClick={() => void generate()}>Generate Theory</Button>
-          </div>
-        )}
-        {!isGenerating && !genError && explanation && (
-          <>
-            <div className="theory-md-content">
-              {explanation.split('\n\n').map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
+      <div className="view-header">
+        <p className="view-breadcrumb">
+          <span>{planTitle}</span> / <span>{topicTitle}</span> /{' '}
+          <span className="view-breadcrumb__current">Theory</span>
+        </p>
+        <div className="view-header__title-row">
+          <h1 className="view-header__title">{topicTitle}</h1>
+        </div>
+      </div>
+      <div className="view-body">
+        <article className="theory-article">
+          {isGenerating && (
+            <div className="theory-generate-card">
+              <span className="plan-create-spinner" aria-hidden="true" />
+              <p>Generating explanation…</p>
             </div>
-            <div className="theory-next">
-              <div>
-                <p className="learn-kicker">Up next</p>
-                <h2>Practice with Exercises</h2>
-                <p>
-                  {activeTopic?.tasks.length ?? 0} exercises · {topicTitle}
-                </p>
+          )}
+          {!isGenerating && genError && (
+            <div className="theory-generate-card">
+              <p style={{ color: 'var(--error)' }}>{genError}</p>
+              <Button onClick={() => void generate()}>Retry</Button>
+            </div>
+          )}
+          {!isGenerating && !genError && !explanation && (
+            <div className="theory-generate-card">
+              <p>No theory content yet.</p>
+              <Button onClick={() => void generate()}>Generate Theory</Button>
+            </div>
+          )}
+          {!isGenerating && !genError && explanation && (
+            <>
+              <div className="theory-md-content">
+                {explanation.split('\n\n').map((para, i) => (
+                  <p key={i}>{para}</p>
+                ))}
               </div>
-              <Button onClick={() => onNavigate('exercise')}>Exercise</Button>
-              <button
-                className="theory-next__quiz-link"
-                type="button"
-                onClick={() => onNavigate('quiz')}
-              >
-                Take the quiz instead
-              </button>
-            </div>
-          </>
-        )}
-      </article>
+              <div className="theory-next">
+                <div>
+                  <p className="learn-kicker">Up next</p>
+                  <h2>Practice with Exercises</h2>
+                  <p>
+                    {activeTopic?.tasks.length ?? 0} exercises · {topicTitle}
+                  </p>
+                </div>
+                <Button onClick={() => onNavigate('exercise')}>Exercise</Button>
+                <button
+                  className="theory-next__quiz-link"
+                  type="button"
+                  onClick={() => onNavigate('quiz')}
+                >
+                  Take the quiz instead
+                </button>
+              </div>
+            </>
+          )}
+        </article>
+      </div>
     </main>
   );
 }
@@ -418,83 +428,90 @@ function QuizMain({
 
   return (
     <main className="learn-main">
-      <div className="quiz-header">
-        <p className="quiz-header__breadcrumb">
-          {planTitle} / {topicTitle} / Quiz
+      <div className="view-header">
+        <p className="view-breadcrumb">
+          <span>{planTitle}</span> / <span>{topicTitle}</span> /{' '}
+          <span className="view-breadcrumb__current">Quiz</span>
         </p>
-        <div className="quiz-header__title-row">
-          <h1>{topicTitle} Quiz</h1>
+        <div className="view-header__title-row">
+          <h1 className="view-header__title">{topicTitle} Quiz</h1>
+          {quiz && (
+            <span className="quiz-header__progress">
+              {currentQ + 1} / {quiz.questions.length}
+            </span>
+          )}
         </div>
-        {quiz && (
-          <p className="quiz-header__progress">
-            {currentQ + 1} / {quiz.questions.length}
-          </p>
-        )}
       </div>
 
-      {(isLoading || isGenerating) && (
-        <div className="quiz-generate-card">
-          <span className="plan-create-spinner" aria-hidden="true" />
-          <p>{isGenerating ? 'Generating quiz questions…' : 'Loading quiz…'}</p>
-        </div>
-      )}
-
-      {!isLoading && !isGenerating && !quiz && (
-        <div className="quiz-generate-card">
-          <p>No quiz yet for this topic.</p>
-          <Button onClick={() => void generateQuiz()}>Generate Quiz</Button>
-        </div>
-      )}
-
-      {!isLoading && !isGenerating && quiz && currentQuestion && (
-        <div className="quiz-question-card">
-          <div className="quiz-question-meta">
-            <strong>Question {currentQ + 1}</strong>
-            <span>Multiple Choice</span>
+      <div className="view-body">
+        {(isLoading || isGenerating) && (
+          <div className="quiz-generate-card">
+            <span className="plan-create-spinner" aria-hidden="true" />
+            <p>{isGenerating ? 'Generating quiz questions…' : 'Loading quiz…'}</p>
           </div>
-          <h2>{currentQuestion.promptMd}</h2>
-          <div className="quiz-choice-list" role="radiogroup" aria-label="Answer choices">
-            {(currentQuestion.choices ?? []).map((choice) => {
-              const isSelected = answers[currentQuestion.id] === choice;
-              return (
-                <button
-                  aria-checked={isSelected}
-                  className={isSelected ? 'selected' : undefined}
-                  key={choice}
-                  role="radio"
-                  tabIndex={isSelected ? 0 : -1}
-                  type="button"
-                  onClick={() => void handleSelectAnswer(currentQuestion.id, choice)}
-                >
-                  {choice}
-                </button>
-              );
-            })}
+        )}
+
+        {!isLoading && !isGenerating && !quiz && (
+          <div className="quiz-generate-card">
+            <p>No quiz yet for this topic.</p>
+            <Button onClick={() => void generateQuiz()}>Generate Quiz</Button>
           </div>
-          <div className="quiz-controls">
-            <Button
-              disabled={currentQ === 0}
-              variant="secondary"
-              onClick={() => setCurrentQ((q) => Math.max(0, q - 1))}
-            >
-              Previous
-            </Button>
-            {isLastQuestion ? (
-              <Button disabled={isSubmitting} onClick={() => void handleSubmitQuiz()}>
-                {isSubmitting ? 'Submitting…' : 'Submit Quiz'}
-              </Button>
-            ) : (
+        )}
+
+        {!isLoading && !isGenerating && quiz && currentQuestion && (
+          <div className="quiz-question-card">
+            <div className="quiz-question-meta">
+              <strong>Question {currentQ + 1}</strong>
+              <span>Multiple Choice</span>
+            </div>
+            <h2>{currentQuestion.promptMd}</h2>
+            <div className="quiz-choice-list" role="radiogroup" aria-label="Answer choices">
+              {(currentQuestion.choices ?? []).map((choice) => {
+                const isSelected = answers[currentQuestion.id] === choice;
+                return (
+                  <button
+                    aria-checked={isSelected}
+                    className={isSelected ? 'selected' : undefined}
+                    key={choice}
+                    role="radio"
+                    tabIndex={isSelected ? 0 : -1}
+                    type="button"
+                    onClick={() => void handleSelectAnswer(currentQuestion.id, choice)}
+                  >
+                    <span
+                      className={`quiz-choice__radio${isSelected ? ' selected' : ''}`}
+                      aria-hidden="true"
+                    />
+                    <span>{choice}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="quiz-controls">
               <Button
-                onClick={() =>
-                  setCurrentQ((q) => Math.min((quiz.questions.length ?? 1) - 1, q + 1))
-                }
+                disabled={currentQ === 0}
+                variant="secondary"
+                onClick={() => setCurrentQ((q) => Math.max(0, q - 1))}
               >
-                Next Question
+                Previous
               </Button>
-            )}
+              {isLastQuestion ? (
+                <Button disabled={isSubmitting} onClick={() => void handleSubmitQuiz()}>
+                  {isSubmitting ? 'Submitting…' : 'Submit Quiz'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() =>
+                    setCurrentQ((q) => Math.min((quiz.questions.length ?? 1) - 1, q + 1))
+                  }
+                >
+                  Next Question
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </main>
   );
 }
@@ -524,32 +541,35 @@ function ResultsMain({
 
   return (
     <main className="learn-main">
-      <div className="quiz-header">
-        <p className="quiz-header__breadcrumb">
-          {planTitle} / {topicTitle} / Results
+      <div className="view-header">
+        <p className="view-breadcrumb">
+          <span>{planTitle}</span> / <span>{topicTitle}</span> /{' '}
+          <span className="view-breadcrumb__current">Results</span>
         </p>
-        <div className="quiz-header__title-row">
-          <h1>Quiz Results</h1>
+        <div className="view-header__title-row">
+          <h1 className="view-header__title">Quiz Results</h1>
         </div>
       </div>
 
-      <div className="quiz-results-score">
-        <div className="quiz-results-score__circle">
-          <span className="quiz-results-score__pct">{pct}%</span>
-          <span className="quiz-results-score__label">
-            {score}/{total} correct
-          </span>
+      <div className="view-body">
+        <div className="quiz-results-score">
+          <div className="quiz-results-score__circle">
+            <span className="quiz-results-score__pct">{pct}%</span>
+            <span className="quiz-results-score__label">
+              {score}/{total} correct
+            </span>
+          </div>
+          <div className="quiz-results-score__verdict">
+            {pct >= 80 ? '🎉 Great job!' : pct >= 60 ? '👍 Good effort!' : '📚 Keep studying!'}
+          </div>
         </div>
-        <div className="quiz-results-score__verdict">
-          {pct >= 80 ? '🎉 Great job!' : pct >= 60 ? '👍 Good effort!' : '📚 Keep studying!'}
-        </div>
-      </div>
 
-      <div className="quiz-results-actions">
-        <Button variant="secondary" onClick={() => onNavigate('quiz')}>
-          Retake Quiz
-        </Button>
-        <Button onClick={onNextTopic}>Next Topic</Button>
+        <div className="quiz-results-actions">
+          <Button variant="secondary" onClick={() => onNavigate('quiz')}>
+            Retake Quiz
+          </Button>
+          <Button onClick={onNextTopic}>Next Topic</Button>
+        </div>
       </div>
     </main>
   );
@@ -634,14 +654,15 @@ function GuidePanel({ scopeType, scopeId, quickActions, contextMd }: GuidePanelP
   return (
     <aside className="learn-guide">
       <div className="learn-guide__tabs">
-        <Tabs
-          activeId="guide"
-          items={[
-            { id: 'guide', label: 'Guide' },
-            { id: 'visualize', label: 'Visualize' },
-            { id: 'progress', label: 'Progress' },
-          ]}
-        />
+        <button className="learn-guide__tab active" type="button">
+          Guide
+        </button>
+        <button className="learn-guide__tab" type="button">
+          Visualize
+        </button>
+        <button className="learn-guide__tab" type="button">
+          Progress
+        </button>
       </div>
       <div className="learn-chat-area">
         {messages.map((m, i) => (

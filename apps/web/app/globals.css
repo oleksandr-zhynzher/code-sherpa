@@ -1704,13 +1704,23 @@ fieldset.setup-field {
   border: 1.5px solid var(--border-subtle);
 }
 
-.learn-topic-item__name {
-  color: var(--foreground-muted);
+/* Active topic: green ring with filled center dot */
+.learn-topic-item__icon--active {
+  border: 1.5px solid var(--accent-primary);
+  position: relative;
 }
 
-.learn-topic-item.active {
-  background: var(--surface-primary);
-  border-left: 3px solid var(--accent-primary);
+.learn-topic-item__icon--active::after {
+  content: '';
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+}
+
+.learn-topic-item__name {
+  color: var(--foreground-muted);
 }
 
 .learn-topic-item.active .learn-topic-item__name {
@@ -1718,30 +1728,58 @@ fieldset.setup-field {
   font-weight: 600;
 }
 
+/* Subtopics: vertical list, indented */
 .learn-topic-subtopics {
   display: flex;
-  gap: 0.375rem;
-  flex-wrap: wrap;
-  padding: 0.375rem 1rem 0.75rem 2.75rem;
+  flex-direction: column;
+  gap: 0;
+  padding: 0.125rem 0 0.5rem 2rem;
 }
 
 .learn-topic-subtopic {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.625rem;
-  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  padding: 0.3125rem 0.5rem;
   background: transparent;
-  color: var(--foreground-secondary);
-  border: 1px solid var(--border-subtle);
+  color: var(--foreground-muted);
+  border: none;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 400;
   font-family: inherit;
+  text-align: left;
+  border-radius: 0.25rem;
+}
+
+.learn-topic-subtopic__radio {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-subtle);
+  flex-shrink: 0;
+  position: relative;
 }
 
 .learn-topic-subtopic.active {
-  background: var(--accent-primary);
-  color: var(--foreground-inverse);
+  color: var(--accent-primary);
   font-weight: 600;
+}
+
+.learn-topic-subtopic.active .learn-topic-subtopic__radio {
   border-color: var(--accent-primary);
+}
+
+.learn-topic-subtopic.active .learn-topic-subtopic__radio::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-primary);
 }
 
 /* Main area */

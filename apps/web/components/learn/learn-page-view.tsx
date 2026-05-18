@@ -94,6 +94,12 @@ function LearnSidebar({
         <p className="learn-topics-section__label">Topics</p>
         {activePlan?.topics.map((topic, topicIdx) => {
           const isActive = activeTopic?.id === topic.id;
+          const iconMod =
+            topic.status === 'done'
+              ? ' learn-topic-item__icon--done'
+              : isActive
+                ? ' learn-topic-item__icon--active'
+                : ' learn-topic-item__icon--circle';
           return (
             <div key={topic.id}>
               <button
@@ -101,14 +107,7 @@ function LearnSidebar({
                 type="button"
                 onClick={() => onSelectTopic(topicIdx)}
               >
-                <span
-                  className={`learn-topic-item__icon${
-                    topic.status === 'done'
-                      ? ' learn-topic-item__icon--done'
-                      : ' learn-topic-item__icon--circle'
-                  }`}
-                  aria-hidden="true"
-                >
+                <span className={`learn-topic-item__icon${iconMod}`} aria-hidden="true">
                   {topic.status === 'done' ? '✓' : ''}
                 </span>
                 <span className="learn-topic-item__name">{topic.title}</span>
@@ -120,6 +119,7 @@ function LearnSidebar({
                     type="button"
                     onClick={() => onNavigate('theory')}
                   >
+                    <span className="learn-topic-subtopic__radio" aria-hidden="true" />
                     Theory
                   </button>
                   <button
@@ -127,6 +127,7 @@ function LearnSidebar({
                     type="button"
                     onClick={() => onNavigate('exercise')}
                   >
+                    <span className="learn-topic-subtopic__radio" aria-hidden="true" />
                     Exercises
                   </button>
                   <button
@@ -134,12 +135,13 @@ function LearnSidebar({
                     type="button"
                     onClick={() => onNavigate('quiz')}
                   >
+                    <span className="learn-topic-subtopic__radio" aria-hidden="true" />
                     Quiz
                   </button>
                 </div>
               )}
               {isActive && view === 'exercise' && topic.tasks.length > 1 && (
-                <div className="learn-topic-subtopics">
+                <div className="learn-topic-subtopics learn-topic-subtopics--tasks">
                   {topic.tasks.map((task, taskIdx) => (
                     <button
                       className={`learn-topic-subtopic${activeTask?.id === task.id ? ' active' : ''}`}
@@ -147,6 +149,7 @@ function LearnSidebar({
                       type="button"
                       onClick={() => onSelectTask(taskIdx)}
                     >
+                      <span className="learn-topic-subtopic__radio" aria-hidden="true" />
                       {task.title}
                     </button>
                   ))}

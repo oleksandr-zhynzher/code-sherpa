@@ -20,8 +20,9 @@ const optionalCliPathSchema = z
   .string()
   .trim()
   .max(500)
-  .transform((value) => (value.length === 0 ? undefined : value))
-  .optional();
+  .nullable()
+  .optional()
+  .transform((value) => (value == null || value.length === 0 ? undefined : value));
 
 const optionalWorkspacePathSchema = z.string().trim().min(1).max(500).optional();
 

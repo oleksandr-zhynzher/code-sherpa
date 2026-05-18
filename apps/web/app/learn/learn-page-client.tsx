@@ -2,16 +2,13 @@
 
 import { useEffect, useState } from 'react';
 
-import { LearningWorkspace } from '../../components/learn/learning-workspace';
-import { QuizResultsView } from '../../components/learn/quiz-results-view';
-import { QuizView } from '../../components/learn/quiz-view';
-import { TheoryView } from '../../components/learn/theory-view';
+import { CoursesPage } from '../../components/learn/courses-page';
+import { LearnPageView } from '../../components/learn/learn-page-view';
 import { api } from '../../lib/api';
 import type { LearnView, PlanDetail, PlanSummary } from '../../lib/types';
 import { PlanCreate } from './plan-create';
 
-type Phase = 'loading' | 'create' | 'learning';
-type GenerateAllState = 'idle' | 'running' | 'done';
+type Phase = 'courses' | 'create' | 'learning' | 'loading';
 
 interface GenerateAllBarProps {
   planId: string;
@@ -19,8 +16,8 @@ interface GenerateAllBarProps {
 }
 
 function GenerateAllBar({ planId, onPlanRefreshed }: GenerateAllBarProps) {
-  const [state, setState] = useState<GenerateAllState>('idle');
-  const [result, setResult] = useState<string | null>(null);
+  const [state, setState] = useState<'done' | 'idle' | 'running'>('idle');
+  const [result, setResult] = useState<null | string>(null);
 
   async function run() {
     setState('running');
@@ -69,22 +66,15 @@ export function LearnPageClient() {
   const [activeTopicIdx, setActiveTopicIdx] = useState(0);
   const [activeTaskIdx, setActiveTaskIdx] = useState(0);
   const [view, setView] = useState<LearnView>('exercise');
-  const [quizScore, setQuizScore] = useState<number | null>(null);
-  const [quizTotal, setQuizTotal] = useState<number | null>(null);
+  const [quizScore, setQuizScore] = useState<null | number>(null);
+  const [quizTotal, setQuizTotal] = useState<null | number>(null);
 
   useEffect(() => {
     async function loadPlans() {
       try {
         const { data } = await api.listPlans();
         setPlans([...data]);
-        const first = data[0];
-        if (!first) {
-          setPhase('create');
-          return;
-        }
-        const plan = await api.showPlan(first.id);
-        setActivePlan(plan);
-        setPhase('learning');
+        setPhase(data.length === 0 ? 'create' : 'courses');
       } catch {
         setPhase('create');
       }
@@ -95,10 +85,22 @@ export function LearnPageClient() {
   function handlePlanCreated(plan: PlanDetail) {
     setActivePlan(plan);
     setPlans((prev) => [plan, ...prev]);
+    resetLearningState();
+    setPhase('learning');
+  }
+
+  function handleSelectPlan(plan: PlanDetail) {
+    setActivePlan(plan);
+    resetLearningState();
+    setPhase('learning');
+  }
+
+  function resetLearningState() {
     setActiveTopicIdx(0);
     setActiveTaskIdx(0);
     setView('exercise');
-    setPhase('learning');
+    setQuizScore(null);
+    setQuizTotal(null);
   }
 
   function handleSelectTopic(idx: number) {
@@ -132,17 +134,6 @@ export function LearnPageClient() {
   const activeTopic = activePlan?.topics[activeTopicIdx] ?? null;
   const activeTask = activeTopic?.tasks[activeTaskIdx] ?? null;
 
-  const sharedProps = {
-    activePlan,
-    activeTopic,
-    activeTask,
-    onNavigate: setView,
-    onNewPlan: () => setPhase('create'),
-    onSelectTask: handleSelectTask,
-    onSelectTopic: handleSelectTopic,
-    onNextTopic: handleNextTopic,
-  };
-
   if (phase === 'loading') {
     return (
       <div className="learn-loading" role="status">
@@ -153,7 +144,7 @@ export function LearnPageClient() {
   }
 
   if (phase === 'create') {
-    const cancelFn = plans.length > 0 ? () => setPhase('learning') : undefined;
+    const cancelFn = plans.length > 0 ? () => setPhase('courses') : undefined;
     return (
       <PlanCreate
         {...(cancelFn !== undefined ? { onCancel: cancelFn } : {})}
@@ -162,35 +153,37 @@ export function LearnPageClient() {
     );
   }
 
+  if (phase === 'courses') {
+    return (
+      <CoursesPage
+        plans={plans}
+        onCreateNew={() => setPhase('create')}
+        onSelect={handleSelectPlan}
+      />
+    );
+  }
+
   const banner = activePlan ? (
     <GenerateAllBar planId={activePlan.id} onPlanRefreshed={setActivePlan} />
   ) : null;
 
-  if (view === 'theory')
-    return (
-      <>
-        {banner}
-        <TheoryView {...sharedProps} />
-      </>
-    );
-  if (view === 'quiz')
-    return (
-      <>
-        {banner}
-        <QuizView {...sharedProps} onQuizComplete={handleQuizComplete} />
-      </>
-    );
-  if (view === 'results')
-    return (
-      <>
-        {banner}
-        <QuizResultsView {...sharedProps} quizScore={quizScore} quizTotal={quizTotal} />
-      </>
-    );
   return (
     <>
       {banner}
-      <LearningWorkspace {...sharedProps} />
+      <LearnPageView
+        activePlan={activePlan}
+        activeTopic={activeTopic}
+        activeTask={activeTask}
+        quizScore={quizScore}
+        quizTotal={quizTotal}
+        view={view}
+        onNavigate={setView}
+        onNewPlan={() => setPhase('courses')}
+        onNextTopic={handleNextTopic}
+        onQuizComplete={handleQuizComplete}
+        onSelectTask={handleSelectTask}
+        onSelectTopic={handleSelectTopic}
+      />
     </>
   );
 }

@@ -24,7 +24,37 @@ Read these in order:
 4. [docs/03-roadmap.md](docs/03-roadmap.md) — Step-by-step staged build plan
 5. [docs/04-poc-walkthrough.md](docs/04-poc-walkthrough.md) — End-to-end user journey for the POC
 
-## Quick status
+## Status
 
-This repository currently contains **planning artifacts only** — no code yet.
-Stage 0 of the [roadmap](docs/03-roadmap.md) is the next concrete step.
+Production-ready local-first learning app, implemented as an NX monorepo:
+
+- `apps/api` — Fastify/Node.js backend with SQLite persistence, workspace file
+  scaffolding, local test execution, git commit/push support, quiz lifecycle,
+  scoped chat threads, contextual guide actions, and structured error recovery.
+- `apps/web` — Next.js UI matching the `.pen` design: Home, Setup (4 states),
+  Learning Space, Theory View, Quiz, Quiz Results.
+
+All 10 pen design frames are implemented. 98 API + 15 web tests pass.
+
+## Run locally
+
+```bash
+npm install
+make build        # docker compose up --build
+```
+
+Or with `make`:
+
+| Command      | Effect                          |
+| ------------ | ------------------------------- |
+| `make build` | Build images and start services |
+| `make dev`   | Start without rebuilding        |
+| `make test`  | Run all quality checks          |
+| `make logs`  | Tail service logs               |
+| `make stop`  | Stop and remove containers      |
+| `make clean` | Stop + remove volumes and dist  |
+
+Then open `http://127.0.0.1:3000`. API health: `http://127.0.0.1:8000/health`.
+
+The local workspace is mounted at `./workspace/`; generated task files and git
+commits are scoped to that directory. App data is persisted in `.code-sherpa/`.

@@ -38,6 +38,7 @@
     "@nx/next": "^22.7.2",
     "@nx/node": "^22.7.2",
     "@nx/workspace": "^22.7.2",
+    "@playwright/test": "^1.60.0",
     "@types/node": "^25.8.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -78,8 +79,10 @@
   "dependencies": {
     "@fastify/cors": "^11.2.0",
     "fastify": "^5.8.5",
+    "lucide-react": "^1.16.0",
     "next": "^16.2.6",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "zod": "^4.4.3"
   }
 }

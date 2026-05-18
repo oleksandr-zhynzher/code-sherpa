@@ -4,7 +4,7 @@ import { buildServer } from './server.js';
 
 describe('api health endpoint', () => {
   it('returns the service health status', async () => {
-    const server = buildServer();
+    const server = await buildServer({ dbPath: ':memory:', logger: false });
 
     const response = await server.inject({
       method: 'GET',
@@ -16,5 +16,7 @@ describe('api health endpoint', () => {
       service: 'code-sherpa-api',
       status: 'ok',
     });
+
+    await server.close();
   });
 });

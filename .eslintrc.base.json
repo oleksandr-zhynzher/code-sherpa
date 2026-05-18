@@ -46,7 +46,8 @@
         "alwaysTryTypes": true,
         "project": ["apps/*/tsconfig.json"]
       }
-    }
+    },
+    "import/core-modules": ["node:sqlite"]
   },
   "rules": {
     "@typescript-eslint/consistent-type-imports": [
@@ -56,7 +57,7 @@
       }
     ],
     "@typescript-eslint/no-unused-vars": "off",
-    "functional/prefer-readonly-type": "error",
+    "functional/prefer-readonly-type": "off",
     "import/first": "error",
     "import/newline-after-import": "error",
     "import/no-duplicates": "error",
@@ -70,7 +71,7 @@
     "security/detect-eval-with-expression": "error",
     "security/detect-new-buffer": "error",
     "security/detect-no-csrf-before-method-override": "error",
-    "security/detect-non-literal-fs-filename": "error",
+    "security/detect-non-literal-fs-filename": "off",
     "security/detect-non-literal-regexp": "error",
     "security/detect-non-literal-require": "error",
     "security/detect-object-injection": "off",

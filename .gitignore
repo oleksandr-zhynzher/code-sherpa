@@ -8,10 +8,15 @@ coverage/
 .env.*
 !.env.example
 
-workspace/
+/workspace/
 .code-sherpa/
 *.db
 
 .DS_Store
 npm-debug.log*
 *.tsbuildinfo
+
+# Playwright
+e2e/test-results/
+e2e/report/
+e2e/screenshots/

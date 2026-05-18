@@ -1,24 +1,59 @@
+networks:
+  code-sherpa:
+    driver: bridge
+
 services:
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    container_name: code-sherpa-api
     environment:
       HOST: 0.0.0.0
       PORT: 8000
+      # Persist the database in the mounted volume so it survives container recreates.
+      DB_PATH: /app/.code-sherpa/code-sherpa.db
+      # GitHub token for Copilot CLI authentication inside Docker.
+      # On macOS: export COPILOT_GITHUB_TOKEN=$(security find-generic-password -s "copilot-cli" -w)
+      # Then run: docker compose up -d
+      COPILOT_GITHUB_TOKEN: ${COPILOT_GITHUB_TOKEN:-}
+      GH_TOKEN: ${GH_TOKEN:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     ports:
       - '127.0.0.1:8000:8000'
     volumes:
       - ./workspace:/app/workspace
       - ./.code-sherpa:/app/.code-sherpa
+      # Mount user home directory (read-only) so CLI tools like copilot/claude
+      # that live under $HOME (e.g. nvm, homebrew) are accessible by the API.
+      # The path is mounted at the same location so absolute paths work correctly.
+      - ${HOME}:${HOME}:ro
+      # Copilot CLI GitHub auth credentials
+      - ${HOME}/.config/gh:/root/.config/gh:ro
+    networks:
+      - code-sherpa
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:8000/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    container_name: code-sherpa-web
     environment:
       NEXT_TELEMETRY_DISABLED: '1'
+      # Browser-side URL — browser talks directly to the API on the host
+      NEXT_PUBLIC_API_URL: 'http://127.0.0.1:8000'
     ports:
       - '127.0.0.1:3000:3000'
+    networks:
+      - code-sherpa
+    restart: unless-stopped
     depends_on:
-      - api
+      api:
+        condition: service_healthy

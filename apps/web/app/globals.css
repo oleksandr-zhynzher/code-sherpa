@@ -2888,6 +2888,41 @@ pre {
   min-height: 60vh;
 }
 
+/* ── Generate All Content Bar ───────────────────────────────── */
+.learn-generate-all-bar {
+  align-items: center;
+  background: var(--surface-card, #f9fafb);
+  border-bottom: 1px solid var(--border-subtle, #e5e7eb);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.625rem 1.5rem;
+}
+
+.learn-generate-all-bar__text {
+  color: var(--fg-secondary, #6b7280);
+  font-size: 0.875rem;
+  flex: 1;
+}
+
+.learn-generate-all-bar__btn {
+  background: var(--brand, #6366f1);
+  border: none;
+  border-radius: var(--rounded-md, 6px);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.375rem 0.875rem;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+
+.learn-generate-all-bar__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 /* ── Theory / Quiz generate cards ──────────────────────────── */
 .theory-generate-card,
 .quiz-generate-card {

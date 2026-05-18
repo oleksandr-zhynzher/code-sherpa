@@ -330,6 +330,68 @@ export function registerRoutes(server: FastifyInstance): void {
     return server.codeSherpa.db.updateTopicExplanation(params.id, explanation);
   });
 
+  server.post('/api/plans/:id/generate-all', async (request) => {
+    const params = idParamsSchema.parse(request.params);
+    const plan = server.codeSherpa.db.getPlan(params.id);
+    const agent = await createConfiguredAgentService(server);
+    const workspacePath = await getConfiguredWorkspacePath(server);
+
+    let explanations = 0;
+    let quizzes = 0;
+    let exercises = 0;
+
+    for (const topic of plan.topics) {
+      if (!topic.explanationMd) {
+        const explanation = await generateTopicExplanationWithAgent({
+          service: agent.service,
+          setup: agent.setup,
+          topic,
+        });
+        server.codeSherpa.db.updateTopicExplanation(topic.id, explanation);
+        explanations++;
+      }
+
+      const existingQuiz = server.codeSherpa.db.findQuizByTopicId(topic.id);
+      if (!existingQuiz) {
+        const questions = await generateQuizWithAgent({
+          service: agent.service,
+          setup: agent.setup,
+          topic,
+        });
+        server.codeSherpa.db.createQuiz({
+          questions,
+          title: `Quiz: ${topic.title}`,
+          topicId: topic.id,
+        });
+        quizzes++;
+      }
+
+      for (const task of topic.tasks) {
+        if (!task.solutionPath) {
+          try {
+            const context = server.codeSherpa.db.getTaskContext(task.id);
+            const scaffold = await scaffoldTask(workspacePath, context);
+            server.codeSherpa.db.updateTaskFiles(task.id, scaffold.solutionPath, scaffold.testPath);
+            server.codeSherpa.db.createCodeGeneration({
+              generatedPaths: [scaffold.solutionPath, scaffold.testPath],
+              prompt: context.promptMd,
+              status: 'completed',
+              taskId: task.id,
+            });
+            exercises++;
+          } catch {
+            // skip scaffolding failures for individual tasks
+          }
+        }
+      }
+    }
+
+    return {
+      generated: { exercises, explanations, quizzes },
+      total: plan.topics.length,
+    };
+  });
+
   server.post('/api/tasks/:id/scaffold', async (request, reply) => {
     const params = idParamsSchema.parse(request.params);
     const context = server.codeSherpa.db.getTaskContext(params.id);

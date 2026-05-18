@@ -85,6 +85,13 @@ export const api = {
     request<Readonly<{ explanationMd: string }>>(`/api/topics/${topicId}/explain`, {
       method: 'POST',
     }),
+  generateAllPlanContent: (planId: string) =>
+    request<
+      Readonly<{
+        generated: Readonly<{ exercises: number; explanations: number; quizzes: number }>;
+        total: number;
+      }>
+    >(`/api/plans/${planId}/generate-all`, { method: 'POST' }),
   testAgentHealth: () =>
     request<Readonly<{ driver: string; health: Readonly<{ message: string; ok: boolean }> }>>(
       '/api/agent/health',

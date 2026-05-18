@@ -11,6 +11,56 @@ import type { LearnView, PlanDetail, PlanSummary } from '../../lib/types';
 import { PlanCreate } from './plan-create';
 
 type Phase = 'loading' | 'create' | 'learning';
+type GenerateAllState = 'idle' | 'running' | 'done';
+
+interface GenerateAllBarProps {
+  planId: string;
+  onPlanRefreshed: (plan: PlanDetail) => void;
+}
+
+function GenerateAllBar({ planId, onPlanRefreshed }: GenerateAllBarProps) {
+  const [state, setState] = useState<GenerateAllState>('idle');
+  const [result, setResult] = useState<string | null>(null);
+
+  async function run() {
+    setState('running');
+    setResult(null);
+    try {
+      const res = await api.generateAllPlanContent(planId);
+      const { explanations, quizzes, exercises } = res.generated;
+      setResult(
+        `Generated: ${explanations} theory pages, ${quizzes} quizzes, ${exercises} exercises across ${res.total} topics.`,
+      );
+      const fresh = await api.showPlan(planId);
+      onPlanRefreshed(fresh);
+    } catch (e) {
+      setResult(e instanceof Error ? e.message : 'Generation failed.');
+    } finally {
+      setState('done');
+    }
+  }
+
+  const label =
+    state === 'running'
+      ? '⏳ Generating content for all topics…'
+      : result !== null
+        ? `✅ ${result}`
+        : 'Pre-generate theory, quizzes, and exercises for every topic at once.';
+
+  return (
+    <div className="learn-generate-all-bar">
+      <span className="learn-generate-all-bar__text">{label}</span>
+      <button
+        className="learn-generate-all-bar__btn"
+        disabled={state === 'running'}
+        type="button"
+        onClick={() => void run()}
+      >
+        {state === 'running' ? 'Generating…' : 'Generate All Content'}
+      </button>
+    </div>
+  );
+}
 
 export function LearnPageClient() {
   const [phase, setPhase] = useState<Phase>('loading');
@@ -27,10 +77,6 @@ export function LearnPageClient() {
       try {
         const { data } = await api.listPlans();
         setPlans([...data]);
-        if (data.length === 0) {
-          setPhase('create');
-          return;
-        }
         const first = data[0];
         if (!first) {
           setPhase('create');
@@ -116,9 +162,35 @@ export function LearnPageClient() {
     );
   }
 
-  if (view === 'theory') return <TheoryView {...sharedProps} />;
-  if (view === 'quiz') return <QuizView {...sharedProps} onQuizComplete={handleQuizComplete} />;
+  const banner = activePlan ? (
+    <GenerateAllBar planId={activePlan.id} onPlanRefreshed={setActivePlan} />
+  ) : null;
+
+  if (view === 'theory')
+    return (
+      <>
+        {banner}
+        <TheoryView {...sharedProps} />
+      </>
+    );
+  if (view === 'quiz')
+    return (
+      <>
+        {banner}
+        <QuizView {...sharedProps} onQuizComplete={handleQuizComplete} />
+      </>
+    );
   if (view === 'results')
-    return <QuizResultsView {...sharedProps} quizScore={quizScore} quizTotal={quizTotal} />;
-  return <LearningWorkspace {...sharedProps} />;
+    return (
+      <>
+        {banner}
+        <QuizResultsView {...sharedProps} quizScore={quizScore} quizTotal={quizTotal} />
+      </>
+    );
+  return (
+    <>
+      {banner}
+      <LearningWorkspace {...sharedProps} />
+    </>
+  );
 }

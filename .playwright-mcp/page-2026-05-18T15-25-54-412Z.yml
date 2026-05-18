@@ -1,0 +1,488 @@
+- generic [ref=e1]:
+  - alert [ref=e2]
+  - region "Your learning space" [ref=e3]:
+    - generic [ref=e4]:
+      - link "code-sherpa home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=e6]
+        - generic [ref=e9]: code sherpa
+      - navigation "Learning navigation" [ref=e10]:
+        - link "Home" [ref=e11] [cursor=pointer]:
+          - /url: /
+        - link "Setup" [ref=e12] [cursor=pointer]:
+          - /url: /setup
+        - link "Learning Space" [ref=e13] [cursor=pointer]:
+          - /url: /learn
+      - generic [ref=e14]:
+        - generic [ref=e17]: All systems ready
+        - generic "User initials" [ref=e18]: OZ
+    - generic [ref=e19]:
+      - complementary [ref=e20]:
+        - generic [ref=e21]:
+          - paragraph [ref=e22]: Your Paths
+          - button "New" [ref=e23] [cursor=pointer]
+        - button "Continue where you left off Prototype Basics" [ref=e24] [cursor=pointer]:
+          - generic [ref=e25]: ▶
+          - generic [ref=e26]:
+            - paragraph [ref=e27]: Continue where you left off
+            - paragraph [ref=e28]: Prototype Basics
+        - generic [ref=e29] [cursor=pointer]:
+          - generic [ref=e30]:
+            - strong [ref=e31]: JS Prototypes Learning Path
+            - generic [ref=e32]: 1 of 8 tasks
+          - progressbar "JS Prototypes Learning Path progress" [ref=e33]
+        - generic [ref=e35]:
+          - paragraph [ref=e36]: Topics
+          - generic [ref=e37]:
+            - button "Prototype Basics" [ref=e38] [cursor=pointer]:
+              - img [ref=e39]
+              - generic [ref=e42]: Prototype Basics
+            - generic [ref=e43]:
+              - button "Theory" [ref=e44] [cursor=pointer]:
+                - img [ref=e45]
+                - text: Theory
+              - button "Exercises" [ref=e49] [cursor=pointer]:
+                - img [ref=e50]
+                - text: Exercises
+              - button "Quiz" [ref=e62] [cursor=pointer]:
+                - img [ref=e63]
+                - text: Quiz
+          - button "Creating and Linking Prototypes" [ref=e67] [cursor=pointer]:
+            - img [ref=e68]
+            - generic [ref=e70]: Creating and Linking Prototypes
+          - button "Classes vs Prototypes" [ref=e72] [cursor=pointer]:
+            - img [ref=e73]
+            - generic [ref=e75]: Classes vs Prototypes
+          - button "Deep Understanding and Edge Cases" [ref=e77] [cursor=pointer]:
+            - img [ref=e78]
+            - generic [ref=e80]: Deep Understanding and Edge Cases
+      - main [ref=e130]:
+        - generic [ref=e131]:
+          - paragraph [ref=e132]: JS Prototypes Learning Path / Prototype Basics / Theory
+          - generic [ref=e133]:
+            - heading "Prototype Basics" [level=1] [ref=e134]
+            - button "Mark as read" [ref=e135] [cursor=pointer]:
+              - img [ref=e136]
+              - text: Mark as read
+        - article [ref=e140]:
+          - generic [ref=e141]:
+            - heading "Prototype Basics" [level=2] [ref=e142]
+            - paragraph [ref=e143]:
+              - text: JavaScript objects can
+              - strong [ref=e144]: share behavior
+              - text: through prototypes. Instead of copying the same method into every object, JavaScript lets one object delegate to another. That delegation system is the foundation of
+              - strong [ref=e145]: prototypes
+              - text: and the
+              - strong [ref=e146]: prototype chain
+              - text: .
+            - separator [ref=e147]
+            - heading "1. What a Prototype Is" [level=3] [ref=e148]
+            - heading "Core idea" [level=4] [ref=e149]
+            - paragraph [ref=e150]:
+              - text: A
+              - strong [ref=e151]: prototype
+              - text: is another object that JavaScript uses as a fallback source of properties and methods.
+            - paragraph [ref=e152]: If an object does not have a property directly on itself, JavaScript can look for it on that object's prototype.
+            - paragraph [ref=e153]:
+              - text: "That is why prototypes exist: they let many objects"
+              - strong [ref=e154]: reuse the same behavior
+              - text: without duplicating code.
+            - separator [ref=e155]
+            - heading "Why JavaScript uses prototypes" [level=4] [ref=e156]
+            - paragraph [ref=e157]: "In many class-based languages, inheritance is described as:"
+            - list [ref=e158]:
+              - listitem [ref=e159]: a class defines behavior
+              - listitem [ref=e160]: objects are created from that class
+              - listitem [ref=e161]: subclasses inherit from parent classes
+            - paragraph [ref=e162]:
+              - text: JavaScript can support
+              - code [ref=e163]: class
+              - text: syntax, but under the hood it still uses
+              - strong [ref=e164]: prototypes
+              - text: .
+            - paragraph [ref=e165]: "High-level comparison:"
+            - paragraph [ref=e166]:
+              - text: "| Idea | Class-based style | Prototype-based style |"
+              - text: "|---|---|---|"
+              - text: "| Reuse behavior | Child class inherits from parent class | Object delegates to prototype object |"
+              - text: "| Main relationship | Class → instance | Object → prototype |"
+              - text: "| Behavior sharing | Via class methods | Via prototype methods |"
+            - paragraph [ref=e167]: "So even when you write:"
+            - code [ref=e169]: "class User { sayHi() { return \"Hi\"; } }"
+            - paragraph [ref=e170]: JavaScript still connects objects through prototypes behind the scenes.
+            - separator [ref=e171]
+            - heading "What [[Prototype]] means" [level=4] [ref=e172]:
+              - text: What
+              - code [ref=e173]: "[[Prototype]]"
+              - text: means
+            - paragraph [ref=e174]:
+              - code [ref=e175]: "[[Prototype]]"
+              - text: is the internal link from one object to another object.
+            - paragraph [ref=e176]: "Beginner-friendly definition:"
+            - blockquote [ref=e177]:
+              - paragraph [ref=e178]:
+                - code [ref=e179]: "[[Prototype]]"
+                - text: is the hidden connection that tells JavaScript, “If you do not find a property here, go look there next.”
+            - paragraph [ref=e180]:
+              - text: You usually do
+              - strong [ref=e181]: not
+              - text: access
+              - code [ref=e182]: "[[Prototype]]"
+              - text: directly. Just know that it is the mechanism behind property lookup.
+            - separator [ref=e183]
+            - heading "How objects share behavior" [level=4] [ref=e184]
+            - paragraph [ref=e185]: Suppose many objects need the same method. Instead of storing that method separately in each object, you can put it on a shared prototype.
+            - paragraph [ref=e186]: Then each object can “inherit” that behavior by delegation.
+            - 'heading "Example 1: Shared behavior through a prototype" [level=4] [ref=e187]'
+            - code [ref=e189]: "const animalMethods = { speak(): string { return \"Some sound\"; } }; const dog = Object.create(animalMethods); dog.name = \"Rex\"; const cat = Object.create(animalMethods); cat.name = \"Milo\"; console.log(dog.speak()); // \"Some sound\" console.log(cat.speak()); // \"Some sound\""
+            - paragraph [ref=e190]:
+              - code [ref=e191]: dog
+              - text: and
+              - code [ref=e192]: cat
+              - text: do not each contain their own
+              - code [ref=e193]: speak
+              - text: method. They both reuse the one from
+              - code [ref=e194]: animalMethods
+              - text: .
+            - 'heading "Example 2: Own properties vs prototype properties" [level=4] [ref=e195]'
+            - code [ref=e197]: "const personPrototype = { greet(): string { return `Hello, ${this.name}`; } }; const person = Object.create(personPrototype); person.name = \"Ava\"; console.log(person.name); // \"Ava\" -> own property console.log(person.greet()); // \"Hello, Ava\" -> from prototype"
+            - paragraph [ref=e198]: "Here:"
+            - list [ref=e199]:
+              - listitem [ref=e200]:
+                - code [ref=e201]: name
+                - text: lives directly on
+                - code [ref=e202]: person
+              - listitem [ref=e203]:
+                - code [ref=e204]: greet
+                - text: is found on
+                - code [ref=e205]: person
+                - text: "'s prototype"
+            - separator [ref=e206]
+            - heading "Mental model" [level=4] [ref=e207]
+            - paragraph [ref=e208]: "Think of an object as a student taking a test:"
+            - list [ref=e209]:
+              - listitem [ref=e210]:
+                - text: First, the student checks
+                - strong [ref=e211]: their own paper
+              - listitem [ref=e212]:
+                - text: If the answer is not there, they check the
+                - strong [ref=e213]: shared class notes
+              - listitem [ref=e214]:
+                - text: If still not there, they check the
+                - strong [ref=e215]: next shared source
+              - listitem [ref=e216]:
+                - text: If nobody has the answer, the result is
+                - strong [ref=e217]: "`undefined`"
+            - paragraph [ref=e218]: That “check here, then check above” behavior is prototype lookup.
+            - separator [ref=e219]
+            - heading "Common misconceptions" [level=4] [ref=e220]
+            - paragraph [ref=e221]:
+              - text: "#### 1. “The prototype copies methods into every object.”"
+              - text: No. Usually the object
+              - strong [ref=e222]: does not copy
+              - text: the method. It
+              - strong [ref=e223]: looks up
+              - text: the method on the prototype when needed.
+            - paragraph [ref=e224]:
+              - text: "#### 2. “"
+              - code [ref=e225]: class
+              - text: means prototypes are not involved.”
+              - text: Not true. JavaScript
+              - code [ref=e226]: class
+              - text: syntax is a cleaner way to write code that still relies on prototypes underneath.
+            - paragraph [ref=e227]:
+              - text: "#### 3. “Prototype inheritance is the same as class inheritance.”"
+              - text: They are related, but not identical. In JavaScript, objects are linked to other objects. That object-to-object delegation is the key idea.
+            - separator [ref=e228]
+            - heading "One small code-oriented example" [level=4] [ref=e229]
+            - code [ref=e231]: "const runner = { run(): string { return \"Running\"; } }; const athlete = Object.create(runner); console.log(athlete.run()); // \"Running\""
+            - paragraph [ref=e232]:
+              - code [ref=e233]: athlete
+              - text: has no
+              - code [ref=e234]: run
+              - text: method directly, but JavaScript finds it on
+              - code [ref=e235]: runner
+              - text: .
+            - separator [ref=e236]
+            - heading "Quick check" [level=4] [ref=e237]
+            - paragraph [ref=e238]:
+              - text: 1. If an object does not have a method directly, where does JavaScript look next?
+              - strong [ref=e239]: "Answer:"
+              - text: On its prototype.
+            - paragraph [ref=e240]:
+              - text: 2. Is a prototype mainly about copying behavior or sharing behavior?
+              - strong [ref=e241]: "Answer:"
+              - text: Sharing behavior.
+            - paragraph [ref=e242]:
+              - text: 3. Does JavaScript
+              - code [ref=e243]: class
+              - text: replace prototypes completely?
+              - strong [ref=e244]: "Answer:"
+              - text: No,
+              - code [ref=e245]: class
+              - text: uses prototypes underneath.
+            - separator [ref=e246]
+            - heading "2. The Prototype Chain" [level=3] [ref=e247]
+            - heading "Core idea" [level=4] [ref=e248]
+            - paragraph [ref=e249]:
+              - text: When JavaScript evaluates
+              - code [ref=e250]: obj.value
+              - text: ", it searches in steps:"
+            - list [ref=e251]:
+              - listitem [ref=e252]:
+                - text: Check whether
+                - code [ref=e253]: obj
+                - text: has its own property called
+                - code [ref=e254]: value
+              - listitem [ref=e255]:
+                - text: If not, check
+                - code [ref=e256]: obj
+                - text: "'s prototype"
+              - listitem [ref=e257]: If not there, check that prototype's prototype
+              - listitem [ref=e258]: Keep going upward
+              - listitem [ref=e259]:
+                - text: If the property is never found, return
+                - strong [ref=e260]: "`undefined`"
+            - paragraph [ref=e261]:
+              - text: This upward search is called the
+              - strong [ref=e262]: prototype chain
+              - text: .
+            - separator [ref=e263]
+            - heading "How property lookup works" [level=4] [ref=e264]
+            - paragraph [ref=e265]: "When JavaScript sees:"
+            - code [ref=e267]: obj.value
+            - paragraph [ref=e268]:
+              - text: it does
+              - strong [ref=e269]: not
+              - text: magically search everywhere at once.
+            - paragraph [ref=e270]: It follows a chain.
+            - heading "Lookup path diagram" [level=4] [ref=e271]
+            - list [ref=e272]:
+              - listitem [ref=e273]:
+                - code [ref=e274]: obj
+              - listitem [ref=e275]:
+                - text: "- if"
+                - code [ref=e276]: value
+                - text: exists here, use it
+              - listitem [ref=e277]:
+                - text: otherwise go to
+                - code [ref=e278]: obj
+                - text: "'s prototype"
+              - listitem [ref=e279]:
+                - text: "- if"
+                - code [ref=e280]: value
+                - text: exists there, use it
+              - listitem [ref=e281]: otherwise go to that prototype's prototype
+              - listitem [ref=e282]:
+                - text: "- if"
+                - code [ref=e283]: value
+                - text: exists there, use it
+              - listitem [ref=e284]: continue until the chain ends
+              - listitem [ref=e285]: if not found anywhere
+              - listitem [ref=e286]:
+                - text: "- result is"
+                - code [ref=e287]: undefined
+            - separator [ref=e288]
+            - heading "Another diagram" [level=4] [ref=e289]
+            - list [ref=e290]:
+              - listitem [ref=e291]:
+                - code [ref=e292]: obj
+              - listitem [ref=e293]:
+                - text: "-"
+                - code [ref=e294]: "[[Prototype]]"
+                - text: →
+                - code [ref=e295]: parent
+              - listitem [ref=e296]:
+                - text: "-"
+                - code [ref=e297]: "[[Prototype]]"
+                - text: →
+                - code [ref=e298]: grandparent
+              - listitem [ref=e299]:
+                - text: "-"
+                - code [ref=e300]: "[[Prototype]]"
+                - text: →
+                - code [ref=e301]: "null"
+            - paragraph [ref=e302]:
+              - code [ref=e303]: "null"
+              - text: means the chain has ended. There is nowhere else to search.
+            - separator [ref=e304]
+            - heading "Example with Object.create" [level=4] [ref=e305]:
+              - text: Example with
+              - code [ref=e306]: Object.create
+            - code [ref=e308]: "const base = { value: 10 }; const child = Object.create(base); console.log(child.value); // 10"
+            - paragraph [ref=e309]: Why?
+            - list [ref=e310]:
+              - listitem [ref=e311]:
+                - code [ref=e312]: child
+                - text: does not have its own
+                - code [ref=e313]: value
+              - listitem [ref=e314]:
+                - text: JavaScript goes to
+                - code [ref=e315]: base
+              - listitem [ref=e316]:
+                - code [ref=e317]: base.value
+                - text: exists, so the answer is
+                - code [ref=e318]: "10"
+            - separator [ref=e319]
+            - heading "Example with multiple levels" [level=4] [ref=e320]
+            - code [ref=e322]: "const grandparent = { value: 100 }; const parent = Object.create(grandparent); const child = Object.create(parent); console.log(child.value); // 100"
+            - paragraph [ref=e323]: "Search path:"
+            - list [ref=e324]:
+              - listitem [ref=e325]:
+                - text: check
+                - code [ref=e326]: child
+                - text: "-> not found"
+              - listitem [ref=e327]:
+                - text: check
+                - code [ref=e328]: parent
+                - text: "-> not found"
+              - listitem [ref=e329]:
+                - text: check
+                - code [ref=e330]: grandparent
+                - text: "-> found"
+                - code [ref=e331]: "100"
+            - separator [ref=e332]
+            - heading "What if the property is missing everywhere?" [level=4] [ref=e333]
+            - code [ref=e335]: "const a = {}; const b = Object.create(a); console.log(b.missing); // undefined"
+            - paragraph [ref=e336]:
+              - text: If JavaScript reaches the end of the prototype chain and never finds
+              - code [ref=e337]: missing
+              - text: ", it returns"
+              - code [ref=e338]: undefined
+              - text: .
+            - separator [ref=e339]
+            - 'heading "Shadowing: own property wins" [level=4] [ref=e340]'
+            - paragraph [ref=e341]: If both the object and its prototype have the same property name, the object's own property wins.
+            - code [ref=e343]: "const base = { value: 10 }; const child = Object.create(base); child.value = 50; console.log(child.value); // 50 console.log(base.value); // 10"
+            - paragraph [ref=e344]:
+              - text: This is called
+              - strong [ref=e345]: shadowing
+              - text: .
+            - separator [ref=e346]
+            - heading "One small code-oriented example" [level=4] [ref=e347]
+            - code [ref=e349]: "const vehicle = { move(): string { return \"Moving\"; } }; const bike = Object.create(vehicle); console.log(bike.move()); // \"Moving\""
+            - paragraph [ref=e350]:
+              - code [ref=e351]: bike
+              - text: does not define
+              - code [ref=e352]: move
+              - text: ", so JavaScript finds it higher in the chain."
+            - separator [ref=e353]
+            - heading "Common pitfalls" [level=4] [ref=e354]
+            - paragraph [ref=e355]:
+              - text: "#### 1. Forgetting that own properties are checked first"
+              - text: If
+              - code [ref=e356]: child.value
+              - text: exists directly on
+              - code [ref=e357]: child
+              - text: ", JavaScript will use it before checking the prototype."
+            - paragraph [ref=e358]:
+              - text: "#### 2. Thinking “not found” causes an error immediately"
+              - text: Accessing a missing property gives
+              - code [ref=e359]: undefined
+              - text: .
+              - text: The error usually comes later if you try to use
+              - code [ref=e360]: undefined
+              - text: like a function.
+            - paragraph [ref=e361]:
+              - text: "#### 3. Assuming"
+              - code [ref=e362]: Object.create(proto)
+              - text: copies everything
+              - text: It does not copy. It creates a new object whose prototype is
+              - code [ref=e363]: proto
+              - text: .
+            - separator [ref=e364]
+            - heading "Prediction practice" [level=3] [ref=e365]
+            - paragraph [ref=e366]:
+              - text: Try to guess the output
+              - strong [ref=e367]: before
+              - text: reading the answer.
+            - heading "1. Prediction" [level=4] [ref=e368]
+            - code [ref=e370]: "const base = { x: 1 }; const obj = Object.create(base); console.log(obj.x);"
+            - paragraph [ref=e371]:
+              - strong [ref=e372]: "Answer:"
+              - code [ref=e373]: "1"
+            - paragraph [ref=e374]:
+              - text: Because
+              - code [ref=e375]: obj
+              - text: does not have
+              - code [ref=e376]: x
+              - text: ", so JavaScript finds"
+              - code [ref=e377]: x
+              - text: "on"
+              - code [ref=e378]: base
+              - text: .
+            - separator [ref=e379]
+            - heading "2. Prediction" [level=4] [ref=e380]
+            - code [ref=e382]: "const base = { x: 1 }; const obj = Object.create(base); obj.x = 5; console.log(obj.x);"
+            - paragraph [ref=e383]:
+              - strong [ref=e384]: "Answer:"
+              - code [ref=e385]: "5"
+            - paragraph [ref=e386]:
+              - text: The own property
+              - code [ref=e387]: obj.x
+              - text: shadows
+              - code [ref=e388]: base.x
+              - text: .
+            - separator [ref=e389]
+            - heading "3. Prediction" [level=4] [ref=e390]
+            - code [ref=e392]: "const grand = { y: 9 }; const parent = Object.create(grand); const child = Object.create(parent); console.log(child.y);"
+            - paragraph [ref=e393]:
+              - strong [ref=e394]: "Answer:"
+              - code [ref=e395]: "9"
+            - paragraph [ref=e396]:
+              - text: JavaScript checks
+              - code [ref=e397]: child
+              - text: ", then"
+              - code [ref=e398]: parent
+              - text: ", then"
+              - code [ref=e399]: grand
+              - text: .
+            - separator [ref=e400]
+            - heading "4. Prediction" [level=4] [ref=e401]
+            - code [ref=e403]: "const base = {}; const obj = Object.create(base); console.log(obj.z);"
+            - paragraph [ref=e404]:
+              - strong [ref=e405]: "Answer:"
+              - code [ref=e406]: undefined
+            - paragraph [ref=e407]: The property is not found anywhere in the chain.
+            - separator [ref=e408]
+            - heading "Practice guidance" [level=3] [ref=e409]
+            - paragraph [ref=e410]: "When learning prototypes, focus on these habits:"
+            - list [ref=e411]:
+              - listitem [ref=e412]:
+                - text: "For every property access, ask:"
+                - strong [ref=e413]: “Is it on the object itself, or on its prototype?”
+              - listitem [ref=e414]:
+                - text: "Trace lookup step by step:"
+                - strong [ref=e415]: "object → prototype → higher prototype → `null`"
+              - listitem [ref=e416]:
+                - text: Practice with small
+                - code [ref=e417]: Object.create
+                - text: examples before mixing in
+                - code [ref=e418]: class
+                - text: syntax
+              - listitem [ref=e419]: Test shadowing by giving both the object and its prototype the same property name
+            - paragraph [ref=e420]: "A strong mental shortcut is:"
+            - blockquote [ref=e421]:
+              - paragraph [ref=e422]:
+                - strong [ref=e423]: Objects store their own data, and prototypes provide shared behavior.
+            - paragraph [ref=e424]: Once that clicks, the prototype chain becomes much easier to read and predict.
+          - generic [ref=e425]:
+            - generic [ref=e426]:
+              - paragraph [ref=e427]: Up next
+              - heading "Practice with Exercises" [level=2] [ref=e428]
+              - paragraph [ref=e429]: 2 exercises · Prototype Basics
+            - button "Exercise" [ref=e430] [cursor=pointer]
+            - button "Take the quiz instead" [ref=e431] [cursor=pointer]
+      - complementary [ref=e432]:
+        - generic [ref=e433]:
+          - button "Guide" [ref=e434] [cursor=pointer]
+          - button "Visualize" [active] [ref=e435] [cursor=pointer]
+          - button "Progress" [ref=e436] [cursor=pointer]
+        - generic [ref=e438]:
+          - button "Show me an example" [ref=e439] [cursor=pointer]
+          - button "Compare both" [ref=e440] [cursor=pointer]
+          - button "Go deeper" [ref=e441] [cursor=pointer]
+        - generic [ref=e442]:
+          - textbox "Ask your Sherpa anything" [ref=e443]:
+            - /placeholder: Ask your Sherpa anything...
+          - button "Send message" [ref=e444] [cursor=pointer]: →

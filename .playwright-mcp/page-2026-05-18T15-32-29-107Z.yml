@@ -1,0 +1,138 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - region "Your learning space" [ref=e82]:
+    - generic [ref=e83]:
+      - link "code-sherpa home" [ref=e84] [cursor=pointer]:
+        - /url: /
+        - img [ref=e85]
+        - generic [ref=e88]: code sherpa
+      - navigation "Learning navigation" [ref=e89]:
+        - link "Home" [ref=e90] [cursor=pointer]:
+          - /url: /
+        - link "Setup" [ref=e91] [cursor=pointer]:
+          - /url: /setup
+        - link "Learning Space" [ref=e92] [cursor=pointer]:
+          - /url: /learn
+      - generic [ref=e93]:
+        - generic [ref=e96]: All systems ready
+        - generic "User initials" [ref=e97]: OZ
+    - generic [ref=e98]:
+      - complementary [ref=e99]:
+        - generic [ref=e100]:
+          - paragraph [ref=e101]: Your Paths
+          - button "New" [ref=e102] [cursor=pointer]
+        - button "Continue where you left off Complexity, Arrays, and Hashing" [ref=e103] [cursor=pointer]:
+          - generic [ref=e104]: ▶
+          - generic [ref=e105]:
+            - paragraph [ref=e106]: Continue where you left off
+            - paragraph [ref=e107]: Complexity, Arrays, and Hashing
+        - generic [ref=e108] [cursor=pointer]:
+          - generic [ref=e109]:
+            - strong [ref=e110]: Ace FAANG Coding Interviews
+            - generic [ref=e111]: 4 of 46 tasks
+          - progressbar "Ace FAANG Coding Interviews progress" [ref=e112]
+        - generic [ref=e114]:
+          - paragraph [ref=e115]: Topics
+          - generic [ref=e116]:
+            - button "Complexity, Arrays, and Hashing" [ref=e117] [cursor=pointer]:
+              - img [ref=e118]
+              - generic [ref=e121]: Complexity, Arrays, and Hashing
+            - generic [ref=e122]:
+              - button "Theory" [ref=e123] [cursor=pointer]:
+                - img [ref=e124]
+                - text: Theory
+              - generic [ref=e127]:
+                - button "Exercises" [ref=e128] [cursor=pointer]:
+                  - img [ref=e129]
+                  - text: Exercises
+                - generic [ref=e133]:
+                  - button "Big-O Pattern Drills" [ref=e134] [cursor=pointer]:
+                    - img [ref=e135]
+                    - text: Big-O Pattern Drills
+                  - button "Two Sum Foundations" [ref=e138] [cursor=pointer]:
+                    - img [ref=e139]
+                    - text: Two Sum Foundations
+                  - button "Group Anagrams by Signature" [ref=e141] [cursor=pointer]:
+                    - img [ref=e142]
+                    - text: Group Anagrams by Signature
+                  - button "Longest Consecutive Sequence" [ref=e144] [cursor=pointer]:
+                    - img [ref=e145]
+                    - text: Longest Consecutive Sequence
+              - button "Quiz" [ref=e147] [cursor=pointer]:
+                - img [ref=e148]
+                - text: Quiz
+          - button "Two Pointers and Sliding Window" [ref=e152] [cursor=pointer]:
+            - img [ref=e153]
+            - generic [ref=e155]: Two Pointers and Sliding Window
+          - button "Stack, Queue, and Monotonic Stack" [ref=e157] [cursor=pointer]:
+            - img [ref=e158]
+            - generic [ref=e160]: Stack, Queue, and Monotonic Stack
+          - button "Binary Search and Greedy" [ref=e162] [cursor=pointer]:
+            - img [ref=e163]
+            - generic [ref=e165]: Binary Search and Greedy
+          - button "Linked Lists" [ref=e167] [cursor=pointer]:
+            - img [ref=e168]
+            - generic [ref=e170]: Linked Lists
+          - button "Trees and Binary Search Trees" [ref=e172] [cursor=pointer]:
+            - img [ref=e173]
+            - generic [ref=e175]: Trees and Binary Search Trees
+          - button "Heaps, Priority Queues, and Intervals" [ref=e177] [cursor=pointer]:
+            - img [ref=e178]
+            - generic [ref=e180]: Heaps, Priority Queues, and Intervals
+          - button "Graphs and Grids" [ref=e182] [cursor=pointer]:
+            - img [ref=e183]
+            - generic [ref=e185]: Graphs and Grids
+          - button "Backtracking and Tries" [ref=e187] [cursor=pointer]:
+            - img [ref=e188]
+            - generic [ref=e190]: Backtracking and Tries
+          - button "Dynamic Programming" [ref=e192] [cursor=pointer]:
+            - img [ref=e193]
+            - generic [ref=e195]: Dynamic Programming
+          - button "Interview Simulation and Pattern Review" [ref=e197] [cursor=pointer]:
+            - img [ref=e198]
+            - generic [ref=e200]: Interview Simulation and Pattern Review
+      - main [ref=e201]:
+        - generic [ref=e202]:
+          - paragraph [ref=e203]: Ace FAANG Coding Interviews / Complexity, Arrays, and Hashing / Exercise
+          - generic [ref=e204]:
+            - heading "Big-O Pattern Drills" [level=1] [ref=e205]
+            - generic [ref=e206]: Easy
+            - generic:
+              - img
+              - text: Completed
+        - generic [ref=e207]:
+          - paragraph [ref=e209]:
+            - text: Estimate the
+            - strong [ref=e210]: time and space complexity
+            - text: "of 10 common code patterns: single loop, nested loops, two independent loops, hash map lookups, sorting, recursion on halves, and building arrays. For each one, explain"
+            - strong [ref=e211]: why
+            - text: the complexity holds in 1-2 sentences.
+          - generic [ref=e212]:
+            - heading "Your Solution" [level=2] [ref=e213]
+            - generic [ref=e214]: python
+          - generic [ref=e215]:
+            - generic [ref=e217]: solution.py
+            - textbox "Your Solution" [ref=e218]
+          - generic [ref=e219]:
+            - button "Check My Answer" [ref=e220] [cursor=pointer]
+            - button "Save Progress" [ref=e221] [cursor=pointer]
+            - button "Get a Hint" [ref=e222] [cursor=pointer]
+          - generic [ref=e223]:
+            - generic [ref=e224]:
+              - paragraph [ref=e225]: Up next
+              - heading "Take the Quiz" [level=2] [ref=e226]
+              - paragraph [ref=e227]: Test your understanding of Complexity, Arrays, and Hashing
+            - button "Take Quiz" [ref=e228] [cursor=pointer]
+      - complementary [ref=e229]:
+        - generic [ref=e230]:
+          - button "Guide" [ref=e231] [cursor=pointer]
+          - button "Visualize" [ref=e232] [cursor=pointer]
+          - button "Progress" [ref=e233] [cursor=pointer]
+        - generic [ref=e235]:
+          - button "Small hint" [ref=e236] [cursor=pointer]
+          - button "Explain error" [ref=e237] [cursor=pointer]
+          - button "Break it down" [ref=e238] [cursor=pointer]
+        - generic [ref=e239]:
+          - textbox "Ask your Sherpa anything" [ref=e240]:
+            - /placeholder: Ask your Sherpa anything...
+          - button "Send message" [ref=e241] [cursor=pointer]: →

@@ -1,0 +1,67 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - region "Your learning courses" [ref=e3]:
+    - generic [ref=e4]:
+      - link "code-sherpa home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=e6]
+        - generic [ref=e9]: code sherpa
+      - navigation "Learning navigation" [ref=e10]:
+        - link "Home" [ref=e11] [cursor=pointer]:
+          - /url: /
+        - link "Setup" [ref=e12] [cursor=pointer]:
+          - /url: /setup
+        - link "Learning Space" [ref=e13] [cursor=pointer]:
+          - /url: /learn
+      - generic [ref=e14]:
+        - generic [ref=e17]: All systems ready
+        - generic "User initials" [ref=e18]: OZ
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - heading "Your Learning Paths" [level=1] [ref=e22]
+          - paragraph [ref=e23]: Select a path to continue or create a new one.
+        - button "+ New Path" [ref=e24] [cursor=pointer]
+      - generic [ref=e25]:
+        - article [ref=e26]:
+          - generic [ref=e27]:
+            - heading "Ace FAANG Coding Interviews" [level=2] [ref=e28]
+            - paragraph [ref=e29]: Ace FAANG coding interviews
+            - generic [ref=e31]: 4 of 46 tasks · 9%
+            - progressbar "Ace FAANG Coding Interviews progress" [ref=e32]
+          - button "Continue" [ref=e35] [cursor=pointer]
+        - article [ref=e36]:
+          - generic [ref=e37]:
+            - heading "JS Prototypes Learning Path" [level=2] [ref=e38]
+            - paragraph [ref=e39]: Please write lessons about JS prototypes
+            - generic [ref=e41]: 1 of 8 tasks · 13%
+            - progressbar "JS Prototypes Learning Path progress" [ref=e42]
+          - button "Continue" [ref=e45] [cursor=pointer]
+        - article [ref=e46]:
+          - generic [ref=e47]:
+            - heading "Learning How Loops Work in JavaScript" [level=2] [ref=e48]
+            - paragraph [ref=e49]: I want to learn how loops work in JS
+            - generic [ref=e51]: 0 of 8 tasks · 0%
+            - progressbar "Learning How Loops Work in JavaScript progress" [ref=e52]
+          - button "Start" [ref=e54] [cursor=pointer]
+        - article [ref=e55]:
+          - generic [ref=e56]:
+            - heading "React Virtual DOM Learning Path" [level=2] [ref=e57]
+            - paragraph [ref=e58]: I want to learn what is the react virtual DOM
+            - generic [ref=e60]: 0 of 9 tasks · 0%
+            - progressbar "React Virtual DOM Learning Path progress" [ref=e61]
+          - button "Start" [ref=e63] [cursor=pointer]
+        - article [ref=e64]:
+          - generic [ref=e65]:
+            - heading "Learn What the React Tree Is" [level=2] [ref=e66]
+            - paragraph [ref=e67]: I want to learn what is the react tree
+            - generic [ref=e69]: 0 of 8 tasks · 0%
+            - progressbar "Learn What the React Tree Is progress" [ref=e70]
+          - button "Start" [ref=e72] [cursor=pointer]
+        - article [ref=e73]:
+          - generic [ref=e74]:
+            - heading "Binary Search Trees Learning Path" [level=2] [ref=e75]
+            - paragraph [ref=e76]: Learn binary search trees
+            - generic [ref=e78]: 0 of 11 tasks · 0%
+            - progressbar "Binary Search Trees Learning Path progress" [ref=e79]
+          - button "Start" [ref=e81] [cursor=pointer]

@@ -92,7 +92,7 @@ export type TaskFiles = Readonly<{
 }>;
 
 export type RunResult = Readonly<{
-  exitCode: number;
+  exitCode: number | string;
   output: string;
   passed: boolean;
 }>;

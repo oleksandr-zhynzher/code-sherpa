@@ -11,6 +11,8 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8000
+      # Persist the database in the mounted volume so it survives container recreates.
+      DB_PATH: /app/.code-sherpa/code-sherpa.db
       # GitHub token for Copilot CLI authentication inside Docker.
       # On macOS: export COPILOT_GITHUB_TOKEN=$(security find-generic-password -s "copilot-cli" -w)
       # Then run: docker compose up -d

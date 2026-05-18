@@ -1,7 +1,7 @@
 'use client';
 
 import { BookOpen, CheckCircle2, Code2, HelpCircle } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { api } from '../../lib/api';
 import type {
@@ -311,17 +311,28 @@ function LearnSidebar({
                     </button>
                     {view === 'exercise' && topic.tasks.length > 1 && (
                       <div className="learn-topic-tasks">
-                        {topic.tasks.map((task, taskIdx) => (
-                          <button
-                            className={`learn-topic-subtopic${activeTask?.id === task.id ? ' active' : ''}`}
-                            key={task.id}
-                            type="button"
-                            onClick={() => onSelectTask(taskIdx)}
-                          >
-                            <RadioIcon active={activeTask?.id === task.id} size={14} />
-                            {task.title}
-                          </button>
-                        ))}
+                        {topic.tasks.map((task, taskIdx) => {
+                          const taskDone = task.status === 'done' || task.status === 'passing';
+                          return (
+                            <button
+                              className={`learn-topic-subtopic${activeTask?.id === task.id ? ' active' : ''}`}
+                              key={task.id}
+                              type="button"
+                              onClick={() => onSelectTask(taskIdx)}
+                            >
+                              {taskDone ? (
+                                <CheckCircle2
+                                  aria-hidden="true"
+                                  className="subtopic-icon subtopic-icon--done"
+                                  size={14}
+                                />
+                              ) : (
+                                <RadioIcon active={activeTask?.id === task.id} size={14} />
+                              )}
+                              {task.title}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -376,6 +387,14 @@ function ExerciseMain({
   const [code, setCode] = useState('');
   const [runStatus, setRunStatus] = useState<RunStatus>('idle');
   const [runOutput, setRunOutput] = useState('');
+  const gutterRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  function syncGutterScroll() {
+    if (gutterRef.current && textareaRef.current) {
+      gutterRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  }
 
   useEffect(() => {
     setCode('');
@@ -473,13 +492,24 @@ function ExerciseMain({
           <div className="learn-code-editor__label">
             <span>solution.{activeTask?.language === 'typescript' ? 'ts' : 'py'}</span>
           </div>
-          <textarea
-            aria-label="Your Solution"
-            className="learn-code-editor__textarea"
-            spellCheck={false}
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-          />
+          <div className="learn-code-editor__body">
+            <div aria-hidden="true" className="learn-code-editor__gutter" ref={gutterRef}>
+              {(code || ' ').split('\n').map((_, i) => (
+                <div className="learn-code-line-num" key={i}>
+                  {i + 1}
+                </div>
+              ))}
+            </div>
+            <textarea
+              aria-label="Your Solution"
+              className="learn-code-editor__textarea"
+              ref={textareaRef}
+              spellCheck={false}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              onScroll={syncGutterScroll}
+            />
+          </div>
         </div>
 
         <div className="learn-action-bar">

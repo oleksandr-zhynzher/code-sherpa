@@ -1,9 +1,19 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import LearnPage from './learn/page';
 import HomePage from './page';
 import SetupPage from './setup/page';
+
+vi.mock('next/navigation', () => ({
+  useRouter() {
+    return {
+      push: vi.fn(),
+      replace: vi.fn(),
+      prefetch: vi.fn(),
+    };
+  },
+}));
 
 describe('app routes', () => {
   it('renders the home route as the product entry point', () => {

@@ -1,5 +1,5 @@
-import { LearnPageClient } from './learn-page-client';
+import { LearnListClient } from './learn-list-client';
 
 export default function LearnPage() {
-  return <LearnPageClient />;
+  return <LearnListClient />;
 }

@@ -1,11 +1,20 @@
 'use client';
 
 import { BookOpen, CheckCircle2, Code2, HelpCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import { api } from '../../lib/api';
-import type { GuideAction, LearnView, PlanDetail, Quiz, QuizAttempt, Task } from '../../lib/types';
+import type {
+  GuideAction,
+  LearnView,
+  PlanDetail,
+  Quiz,
+  QuizAttempt,
+  Task,
+  Visualization,
+} from '../../lib/types';
 import { Button, Logo, Pill, ProgressBar } from '../ui/design-system';
+import { VisualizationRenderer } from '../visualization/VisualizationRenderer';
 
 type TopicWithTasks = PlanDetail['topics'][number];
 
@@ -31,6 +40,129 @@ function difficultyTone(d: string): 'danger' | 'success' | 'warning' {
   if (d === 'easy') return 'success';
   if (d === 'hard') return 'danger';
   return 'warning';
+}
+
+// ─── Markdown Renderers ───────────────────────────────────────────────────────
+
+/** Renders **bold**, `code`, and _italic_ inline markdown patterns. */
+function InlineMd({ text }: { text: string }) {
+  const re = /\*\*([^*]+)\*\*|`([^`]+)`|_([^_]+)_/g;
+  const nodes: ReactNode[] = [];
+  let cursor = 0;
+  let key = 0;
+  for (const m of text.matchAll(re)) {
+    const idx = m.index ?? 0;
+    if (idx > cursor) nodes.push(text.slice(cursor, idx));
+    const [, bold, code, italic] = m;
+    if (bold !== undefined) nodes.push(<strong key={key}>{bold}</strong>);
+    else if (code !== undefined) nodes.push(<code key={key}>{code}</code>);
+    else if (italic !== undefined) nodes.push(<em key={key}>{italic}</em>);
+    cursor = idx + m[0].length;
+    key++;
+  }
+  if (cursor < text.length) nodes.push(text.slice(cursor));
+  return <>{nodes}</>;
+}
+
+/** Renders block-level markdown: headings, lists, and paragraphs with inline styles. */
+function renderMdBlock(block: string, key: number): ReactNode {
+  const lines = block.split('\n').filter(Boolean);
+  if (lines.length === 0) return null;
+  const first = lines[0] ?? '';
+
+  if (first === '---' || first === '***' || first === '___') {
+    return <hr key={key} />;
+  }
+  if (first.startsWith('> ')) {
+    return (
+      <blockquote key={key}>
+        {lines.map((l, j) => (
+          <p key={j}>
+            <InlineMd text={l.replace(/^> ?/, '')} />
+          </p>
+        ))}
+      </blockquote>
+    );
+  }
+  if (first.startsWith('### ')) {
+    return (
+      <h4 key={key}>
+        <InlineMd text={first.slice(4)} />
+      </h4>
+    );
+  }
+  if (first.startsWith('## ')) {
+    return (
+      <h3 key={key}>
+        <InlineMd text={first.slice(3)} />
+      </h3>
+    );
+  }
+  if (first.startsWith('# ')) {
+    return (
+      <h2 key={key}>
+        <InlineMd text={first.slice(2)} />
+      </h2>
+    );
+  }
+  if (lines.every((l) => /^[*-] /.test(l.trim()))) {
+    return (
+      <ul key={key}>
+        {lines.map((l, j) => (
+          <li key={j}>
+            <InlineMd text={l.replace(/^[*-] /, '')} />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  if (lines.every((l) => /^\d+\. /.test(l.trim()))) {
+    return (
+      <ol key={key}>
+        {lines.map((l, j) => (
+          <li key={j}>
+            <InlineMd text={l.replace(/^\d+\. /, '')} />
+          </li>
+        ))}
+      </ol>
+    );
+  }
+  return (
+    <p key={key}>
+      {lines.flatMap((l, j) =>
+        j === 0
+          ? [<InlineMd key={j} text={l} />]
+          : [<br key={`br-${j}`} />, <InlineMd key={j} text={l} />],
+      )}
+    </p>
+  );
+}
+
+function MarkdownContent({ md }: { md: string }) {
+  const rendered: ReactNode[] = [];
+  let key = 0;
+
+  // Split by fenced code blocks, preserving them as individual segments
+  const segments = md.split(/(```\w*\n.*?```)/s);
+
+  for (const segment of segments) {
+    if (segment.startsWith('```')) {
+      const lang = /^```(\w+)/.exec(segment)?.[1] ?? '';
+      const code = segment.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
+      rendered.push(
+        <pre key={key++} className="learn-code-block" data-language={lang || undefined}>
+          <code>{code}</code>
+        </pre>,
+      );
+      continue;
+    }
+
+    for (const block of segment.split(/\n{2,}/)) {
+      const node = renderMdBlock(block, key++);
+      if (node) rendered.push(node);
+    }
+  }
+  return <>{rendered}</>;
 }
 
 // ─── Radio Icon ──────────────────────────────────────────────────────────────
@@ -179,17 +311,28 @@ function LearnSidebar({
                     </button>
                     {view === 'exercise' && topic.tasks.length > 1 && (
                       <div className="learn-topic-tasks">
-                        {topic.tasks.map((task, taskIdx) => (
-                          <button
-                            className={`learn-topic-subtopic${activeTask?.id === task.id ? ' active' : ''}`}
-                            key={task.id}
-                            type="button"
-                            onClick={() => onSelectTask(taskIdx)}
-                          >
-                            <RadioIcon active={activeTask?.id === task.id} size={14} />
-                            {task.title}
-                          </button>
-                        ))}
+                        {topic.tasks.map((task, taskIdx) => {
+                          const taskDone = task.status === 'done' || task.status === 'passing';
+                          return (
+                            <button
+                              className={`learn-topic-subtopic${activeTask?.id === task.id ? ' active' : ''}`}
+                              key={task.id}
+                              type="button"
+                              onClick={() => onSelectTask(taskIdx)}
+                            >
+                              {taskDone ? (
+                                <CheckCircle2
+                                  aria-hidden="true"
+                                  className="subtopic-icon subtopic-icon--done"
+                                  size={14}
+                                />
+                              ) : (
+                                <RadioIcon active={activeTask?.id === task.id} size={14} />
+                              )}
+                              {task.title}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -218,18 +361,22 @@ function LearnSidebar({
 
 // ─── Exercise Main ────────────────────────────────────────────────────────────
 
+type RunStatus = 'idle' | 'saving' | 'running' | 'pass' | 'fail' | 'error';
+
 function ExerciseMain({
   activePlan,
   activeTopic,
   activeTask,
   onMarkTaskDone,
   onNavigate,
+  onGetHint,
 }: {
   activePlan: PlanDetail | null;
   activeTopic: TopicWithTasks | null;
   activeTask: Task | null;
   onMarkTaskDone: (taskId: string) => void;
   onNavigate: (view: LearnView) => void;
+  onGetHint: () => void;
 }) {
   const planTitle = activePlan?.title ?? DEFAULT_PLAN_TITLE;
   const topicTitle = activeTopic?.title ?? '';
@@ -238,10 +385,64 @@ function ExerciseMain({
   const taskPrompt = activeTask?.promptMd ?? '';
   const isDone = activeTask?.status === 'done' || activeTask?.status === 'passing';
   const [code, setCode] = useState('');
+  const [runStatus, setRunStatus] = useState<RunStatus>('idle');
+  const [runOutput, setRunOutput] = useState('');
+  const gutterRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  function syncGutterScroll() {
+    if (gutterRef.current && textareaRef.current) {
+      gutterRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  }
 
   useEffect(() => {
     setCode('');
+    setRunStatus('idle');
+    setRunOutput('');
   }, [activeTask?.id]);
+
+  async function handleSave() {
+    if (!activeTask?.id || runStatus === 'saving' || runStatus === 'running') return;
+    setRunStatus('saving');
+    try {
+      await api.saveSolution(activeTask.id, code);
+      setRunStatus('idle');
+    } catch {
+      setRunStatus('error');
+      setRunOutput('Failed to save progress.');
+    }
+  }
+
+  async function handleCheck() {
+    if (!activeTask?.id || runStatus === 'running' || runStatus === 'saving') return;
+    setRunStatus('saving');
+    try {
+      await api.saveSolution(activeTask.id, code);
+    } catch {
+      setRunStatus('error');
+      setRunOutput('Failed to save solution before running.');
+      return;
+    }
+    setRunStatus('running');
+    try {
+      const { result } = await api.runTask(activeTask.id);
+      setRunStatus(result.passed ? 'pass' : 'fail');
+      const output =
+        result.output ||
+        (result.exitCode === 'ENOENT'
+          ? 'Test runner not found. Make sure your workspace is set up correctly.'
+          : result.passed
+            ? ''
+            : 'No output from test runner.');
+      setRunOutput(output);
+    } catch {
+      setRunStatus('error');
+      setRunOutput('Failed to run tests. Please try again.');
+    }
+  }
+
+  const isBusy = runStatus === 'saving' || runStatus === 'running';
 
   return (
     <main className="learn-main">
@@ -276,7 +477,9 @@ function ExerciseMain({
       <div className="view-body">
         <div className="learn-exercise-desc">
           {taskPrompt.split('\n\n').map((para, i) => (
-            <p key={i}>{para.replaceAll('**', '')}</p>
+            <p key={i}>
+              <InlineMd text={para} />
+            </p>
           ))}
         </div>
 
@@ -289,26 +492,70 @@ function ExerciseMain({
           <div className="learn-code-editor__label">
             <span>solution.{activeTask?.language === 'typescript' ? 'ts' : 'py'}</span>
           </div>
-          <textarea
-            aria-label="Your Solution"
-            className="learn-code-editor__textarea"
-            spellCheck={false}
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-          />
+          <div className="learn-code-editor__body">
+            <div aria-hidden="true" className="learn-code-editor__gutter" ref={gutterRef}>
+              {(code || ' ').split('\n').map((_, i) => (
+                <div className="learn-code-line-num" key={i}>
+                  {i + 1}
+                </div>
+              ))}
+            </div>
+            <textarea
+              aria-label="Your Solution"
+              className="learn-code-editor__textarea"
+              ref={textareaRef}
+              spellCheck={false}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              onScroll={syncGutterScroll}
+            />
+          </div>
         </div>
 
         <div className="learn-action-bar">
-          <Button>Check My Answer</Button>
-          <Button variant="secondary">Save Progress</Button>
-          <Button variant="ghost">Get a Hint</Button>
+          <Button disabled={isBusy || !activeTask} onClick={() => void handleCheck()}>
+            {runStatus === 'running'
+              ? 'Running…'
+              : runStatus === 'saving'
+                ? 'Saving…'
+                : 'Check My Answer'}
+          </Button>
+          <Button
+            disabled={isBusy || !activeTask}
+            variant="secondary"
+            onClick={() => void handleSave()}
+          >
+            {runStatus === 'saving' ? 'Saving…' : 'Save Progress'}
+          </Button>
+          <Button variant="ghost" onClick={onGetHint}>
+            Get a Hint
+          </Button>
         </div>
+
+        {runStatus === 'pass' && (
+          <div className="learn-run-result learn-run-result--pass" role="status">
+            <strong>✓ All tests passed!</strong>
+            {runOutput && <pre className="learn-run-output">{runOutput}</pre>}
+          </div>
+        )}
+        {runStatus === 'fail' && (
+          <div className="learn-run-result learn-run-result--fail" role="status">
+            <strong>✗ Tests failed</strong>
+            {runOutput && <pre className="learn-run-output">{runOutput}</pre>}
+          </div>
+        )}
+        {runStatus === 'error' && (
+          <div className="learn-run-result learn-run-result--fail" role="status">
+            <strong>Error</strong>
+            {runOutput && <p>{runOutput}</p>}
+          </div>
+        )}
 
         <div className="learn-next">
           <div>
             <p className="learn-kicker">Up next</p>
             <h2>Take the Quiz</h2>
-            <p>{activeTopic?.tasks.length ?? 0} questions · Test your understanding</p>
+            <p>Test your understanding of {topicTitle}</p>
           </div>
           <Button onClick={() => onNavigate('quiz')}>Take Quiz</Button>
         </div>
@@ -399,9 +646,7 @@ function TheoryMain({
           {!isGenerating && !genError && explanation && (
             <>
               <div className="theory-md-content">
-                {explanation.split('\n\n').map((para, i) => (
-                  <p key={i}>{para}</p>
-                ))}
+                <MarkdownContent md={explanation} />
               </div>
               <div className="theory-next">
                 <div>
@@ -550,7 +795,9 @@ function QuizMain({
               <strong>Question {currentQ + 1}</strong>
               <span>Multiple Choice</span>
             </div>
-            <h2>{currentQuestion.promptMd}</h2>
+            <h2>
+              <InlineMd text={currentQuestion.promptMd} />
+            </h2>
             <div className="quiz-choice-list" role="radiogroup" aria-label="Answer choices">
               {(currentQuestion.choices ?? []).map((choice) => {
                 const isSelected = answers[currentQuestion.id] === choice;
@@ -568,7 +815,9 @@ function QuizMain({
                       className={`quiz-choice__radio${isSelected ? ' selected' : ''}`}
                       aria-hidden="true"
                     />
-                    <span>{choice}</span>
+                    <span>
+                      <InlineMd text={choice} />
+                    </span>
                   </button>
                 );
               })}
@@ -668,13 +917,29 @@ interface GuidePanelProps {
   scopeId: string | undefined;
   quickActions: ReadonlyArray<{ action: GuideAction; label: string }>;
   contextMd: string;
+  taskId?: string | null;
+  activeTopic?: TopicWithTasks | null;
+  pendingAction?: GuideAction | null;
+  onPendingActionConsumed?: () => void;
 }
 
-function GuidePanel({ scopeType, scopeId, quickActions, contextMd }: GuidePanelProps) {
+function GuidePanel({
+  scopeType,
+  scopeId,
+  quickActions,
+  contextMd,
+  taskId,
+  activeTopic,
+  pendingAction,
+  onPendingActionConsumed,
+}: GuidePanelProps) {
+  const [guideTab, setGuideTab] = useState<'guide' | 'progress' | 'visualize'>('guide');
   const [messages, setMessages] = useState<ReadonlyArray<{ content: string; role: string }>>([]);
   const [inputVal, setInputVal] = useState('');
   const [threadId, setThreadId] = useState<null | string>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [visualizations, setVisualizations] = useState<ReadonlyArray<Visualization> | null>(null);
+  const [isLoadingViz, setIsLoadingViz] = useState(false);
 
   useEffect(() => {
     if (!scopeId) return;
@@ -697,6 +962,34 @@ function GuidePanel({ scopeType, scopeId, quickActions, contextMd }: GuidePanelP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeId, scopeType]);
 
+  // Load visualizations when Visualize tab becomes active
+  useEffect(() => {
+    if (guideTab !== 'visualize' || !taskId) return;
+    let cancelled = false;
+    setIsLoadingViz(true);
+    void (async () => {
+      try {
+        const { visualizations: viz } = await api.getTaskVisualizations(taskId);
+        if (!cancelled) setVisualizations(viz);
+      } catch {
+        if (!cancelled) setVisualizations([]);
+      } finally {
+        if (!cancelled) setIsLoadingViz(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [guideTab, taskId]);
+
+  // Fire pending action from parent (e.g. "Get a Hint" button in exercise area)
+  useEffect(() => {
+    if (!pendingAction) return;
+    onPendingActionConsumed?.();
+    void sendQuickAction(pendingAction);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAction]);
+
   async function sendQuickAction(action: GuideAction) {
     if (!scopeId || isLoading) return;
     setIsLoading(true);
@@ -716,11 +1009,8 @@ function GuidePanel({ scopeType, scopeId, quickActions, contextMd }: GuidePanelP
     }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const text = inputVal.trim();
+  async function sendMessage(text: string) {
     if (!text || !scopeId || isLoading) return;
-    setInputVal('');
     setMessages((prev) => [...prev, { role: 'user', content: text }]);
     setIsLoading(true);
     try {
@@ -737,52 +1027,156 @@ function GuidePanel({ scopeType, scopeId, quickActions, contextMd }: GuidePanelP
     }
   }
 
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = inputVal.trim();
+    if (!text) return;
+    setInputVal('');
+    await sendMessage(text);
+  }
+
   return (
     <aside className="learn-guide">
       <div className="learn-guide__tabs">
-        <button className="learn-guide__tab active" type="button">
+        <button
+          className={`learn-guide__tab${guideTab === 'guide' ? ' active' : ''}`}
+          type="button"
+          onClick={() => setGuideTab('guide')}
+        >
           Guide
         </button>
-        <button className="learn-guide__tab" type="button">
+        <button
+          className={`learn-guide__tab${guideTab === 'visualize' ? ' active' : ''}`}
+          type="button"
+          onClick={() => setGuideTab('visualize')}
+        >
           Visualize
         </button>
-        <button className="learn-guide__tab" type="button">
+        <button
+          className={`learn-guide__tab${guideTab === 'progress' ? ' active' : ''}`}
+          type="button"
+          onClick={() => setGuideTab('progress')}
+        >
           Progress
         </button>
       </div>
-      <div className="learn-chat-area">
-        {messages.map((m, i) => (
-          <article key={i} className={`learn-message ${m.role}`}>
-            {m.role === 'assistant' && <p className="learn-message__label">Sherpa</p>}
-            <p>{m.content}</p>
-          </article>
-        ))}
-        {isLoading && (
-          <div className="learn-chat-loading">
-            <span className="plan-create-spinner" aria-hidden="true" />
-            Thinking…
+
+      {guideTab === 'guide' && (
+        <>
+          <div className="learn-chat-area">
+            {messages.map((m, i) => (
+              <article key={i} className={`learn-message ${m.role}`}>
+                {m.role === 'assistant' && <p className="learn-message__label">Sherpa</p>}
+                <p>{m.content}</p>
+              </article>
+            ))}
+            {isLoading && (
+              <div className="learn-chat-loading">
+                <span className="plan-create-spinner" aria-hidden="true" />
+                Thinking…
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      <div className="learn-quick-actions">
-        {quickActions.map(({ action, label }) => (
-          <button key={action} type="button" onClick={() => void sendQuickAction(action)}>
-            {label}
-          </button>
-        ))}
-      </div>
-      <form className="learn-chat-input-bar" onSubmit={(e) => void handleSubmit(e)}>
-        <input
-          aria-label="Ask your Sherpa anything"
-          placeholder="Ask your Sherpa anything..."
-          type="text"
-          value={inputVal}
-          onChange={(e) => setInputVal(e.target.value)}
-        />
-        <button aria-label="Send message" className="learn-chat-input-bar__send" type="submit">
-          →
-        </button>
-      </form>
+          <div className="learn-quick-actions">
+            {quickActions.map(({ action, label }) => (
+              <button key={action} type="button" onClick={() => void sendQuickAction(action)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <form className="learn-chat-input-bar" onSubmit={(e) => void handleSubmit(e)}>
+            <input
+              aria-label="Ask your Sherpa anything"
+              placeholder="Ask your Sherpa anything..."
+              type="text"
+              value={inputVal}
+              onChange={(e) => setInputVal(e.target.value)}
+            />
+            <button aria-label="Send message" className="learn-chat-input-bar__send" type="submit">
+              →
+            </button>
+          </form>
+        </>
+      )}
+
+      {guideTab === 'visualize' && (
+        <div className="learn-guide-panel">
+          {!taskId && (
+            <p className="learn-guide-panel__empty">
+              Open a task to see and generate visualizations.
+            </p>
+          )}
+          {taskId && isLoadingViz && (
+            <div className="learn-chat-loading">
+              <span className="plan-create-spinner" aria-hidden="true" />
+              Loading visualizations…
+            </div>
+          )}
+          {taskId && !isLoadingViz && visualizations?.length === 0 && (
+            <div className="learn-guide-panel__empty">
+              <p>No visualizations yet.</p>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setGuideTab('guide');
+                  void sendMessage('Please generate a visualization for this task.');
+                }}
+              >
+                Generate Visualization
+              </Button>
+            </div>
+          )}
+          {taskId && !isLoadingViz && visualizations && visualizations.length > 0 && (
+            <div className="learn-guide-viz-list">
+              {visualizations.map((viz) => (
+                <div key={viz.id} className="learn-guide-viz-item">
+                  <VisualizationRenderer visualization={viz} />
+                </div>
+              ))}
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setGuideTab('guide');
+                  void sendMessage('Please generate a new visualization for this task.');
+                }}
+              >
+                Generate New
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {guideTab === 'progress' && (
+        <div className="learn-guide-panel">
+          {!activeTopic && <p className="learn-guide-panel__empty">No topic selected.</p>}
+          {activeTopic && (
+            <>
+              <p className="learn-guide-panel__heading">{activeTopic.title}</p>
+              <ul className="learn-guide-progress-list">
+                {activeTopic.tasks.map((t) => (
+                  <li
+                    key={t.id}
+                    className={`learn-guide-progress-item${t.status === 'done' ? ' done' : ''}`}
+                  >
+                    <span
+                      className="learn-guide-progress-item__icon"
+                      aria-label={t.status === 'done' ? 'Done' : 'Not done'}
+                    >
+                      {t.status === 'done' ? '✓' : '○'}
+                    </span>
+                    <span>{t.title}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="learn-guide-panel__sub">
+                {activeTopic.tasks.filter((t) => t.status === 'done').length} /{' '}
+                {activeTopic.tasks.length} tasks completed
+              </p>
+            </>
+          )}
+        </div>
+      )}
     </aside>
   );
 }
@@ -831,6 +1225,7 @@ export function LearnPageView({
   const [readTopics, setReadTopics] = useState<ReadonlySet<string>>(
     () => new Set(activePlan?.topics.filter((t) => t.theoryRead).map((t) => t.id) ?? []),
   );
+  const [pendingHint, setPendingHint] = useState<GuideAction | null>(null);
 
   function handleMarkAsRead() {
     const topicId = activeTopic?.id;
@@ -917,6 +1312,7 @@ export function LearnPageView({
             activeTask={activeTask}
             onMarkTaskDone={onMarkTaskDone}
             onNavigate={onNavigate}
+            onGetHint={() => setPendingHint('small_hint')}
           />
         )}
 
@@ -926,6 +1322,10 @@ export function LearnPageView({
           quickActions={quickActions}
           scopeId={guideScopeId}
           scopeType={guideScope}
+          taskId={activeTask?.id ?? null}
+          activeTopic={activeTopic}
+          pendingAction={pendingHint}
+          onPendingActionConsumed={() => setPendingHint(null)}
         />
       </div>
     </section>

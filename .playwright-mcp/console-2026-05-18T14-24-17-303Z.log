@@ -1,0 +1,2 @@
+[   34194ms] [ERROR] Access to fetch at 'http://127.0.0.1:8000/api/tasks/plan-bb421a5f-db4-topic-1-e530b193-task-1-cc2e9848/solution' from origin 'http://127.0.0.1:3000' has been blocked by CORS policy: Method PUT is not allowed by Access-Control-Allow-Methods in preflight response. @ http://127.0.0.1:3000/learn/plan-bb421a5f-db4:0
+[   34194ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://127.0.0.1:8000/api/tasks/plan-bb421a5f-db4-topic-1-e530b193-task-1-cc2e9848/solution:0
